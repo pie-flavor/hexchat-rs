@@ -1,0 +1,23 @@
+[package]
+name = "hexchat"
+version = "0.1.0"
+authors = ["Adam Spofford <pieflavor.mc@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+libc = "0.2.48"
+lazy_static = "1.2.0"
+failure = "0.1.5"
+charsets = "0.2.0"
+bitflags = "1.0.4"
+chrono = "0.4.6"
+gtk = { version = "0.5.0", optional = true }
+glib = { version = "0.6.1", optional = true }
+gtk-sys = { version = "0.7.0", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.6", optional = true }
+
+[features]
+window = ["gtk", "glib", "gtk-sys", "winapi"]
+
