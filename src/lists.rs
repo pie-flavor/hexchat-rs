@@ -24,7 +24,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            c::hexchat_list_free(self.ph, self.handle);
+            c!(hexchat_list_free, self.ph, self.handle);
         }
     }
 }
@@ -45,31 +45,31 @@ where
         let name = to_cstring(T::LIST_NAME);
         Self {
             ph,
-            handle: unsafe { c::hexchat_list_get(ph, name.as_ptr()) },
+            handle: unsafe { c!(hexchat_list_get, ph, name.as_ptr()) },
             _ref: PhantomData,
             _item: PhantomData,
         }
     }
     fn move_next(&mut self) -> bool {
-        unsafe { c::hexchat_list_next(self.ph, self.handle) != 0 }
+        unsafe { c!(hexchat_list_next, self.ph, self.handle) != 0 }
     }
     fn get_item_string(&self, field: &str) -> Option<String> {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c::hexchat_list_str(self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
             from_cstring_opt(ptr)
         }
     }
     fn get_item_int(&self, field: &str) -> i32 {
         unsafe {
             let cstr = to_cstring(field);
-            c::hexchat_list_int(self.ph, self.handle, cstr.as_ptr()) as _
+            c!(hexchat_list_int, self.ph, self.handle, cstr.as_ptr()) as _
         }
     }
     fn get_item_time(&self, field: &str) -> DateTime<Utc> {
         unsafe {
             let cstr = to_cstring(field);
-            let time = c::hexchat_list_time(self.ph, self.handle, cstr.as_ptr());
+            let time = c!(hexchat_list_time, self.ph, self.handle, cstr.as_ptr());
             let naive = NaiveDateTime::from_timestamp(time as _, 0);
             Utc.from_utc_datetime(&naive)
         }
@@ -77,14 +77,14 @@ where
     fn get_item_context(&self, field: &str) -> *mut c::hexchat_context {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c::hexchat_list_str(self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
             ptr as *mut _
         }
     }
     fn get_item_char(&self, field: &str) -> char {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c::hexchat_list_str(self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
             if ptr.is_null() {
                 '\0'
             } else {
@@ -103,7 +103,7 @@ where
 {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        let res = unsafe { c::hexchat_list_next(self.ph, self.handle) };
+        let res = unsafe { c!(hexchat_list_next, self.ph, self.handle) };
         if res == 0 {
             Some(self.get_current())
         } else {
@@ -628,15 +628,16 @@ impl Context {
     ) -> Option<impl Iterator<Item = UserInfo>> {
         unsafe {
             let context = Self { handle: channel.ph };
-            let ctx = c::hexchat_get_context(channel.ph);
-            if c::hexchat_set_context(channel.ph, channel.handle) == 0 {
+            let ctx = c!(hexchat_get_context, channel.ph);
+            if c!(hexchat_set_context, channel.ph, channel.handle) == 0 {
                 None
             } else {
                 let list = context.get_users_in_current_channel();
-                if c::hexchat_set_context(channel.ph, ctx) == 0 {
-                    c::hexchat_set_context(
+                if c!(hexchat_set_context, channel.ph, ctx) == 0 {
+                    c!(
+                        hexchat_set_context,
                         channel.ph,
-                        c::hexchat_find_context(channel.ph, ptr::null(), ptr::null()),
+                        c!(hexchat_find_context, channel.ph, ptr::null(), ptr::null()),
                     );
                 }
                 Some(list)

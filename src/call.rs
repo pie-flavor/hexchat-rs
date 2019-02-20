@@ -19,23 +19,29 @@
 macro_rules! plugin {
     ($x:ty) => {
         #[no_mangle]
-        pub unsafe extern fn hexchat_plugin_init(
+        pub unsafe extern "C" fn hexchat_plugin_init(
             plugin_handle: *mut $crate::c::hexchat_plugin,
             plugin_name: *mut *const ::std::os::raw::c_char,
             plugin_desc: *mut *const ::std::os::raw::c_char,
             plugin_version: *mut *const ::std::os::raw::c_char,
             arg: *mut ::std::os::raw::c_char,
         ) -> ::std::os::raw::c_int {
-            $crate::call::hexchat_plugin_init::<$x>(plugin_handle, plugin_name, plugin_desc, plugin_version, arg)
+            $crate::call::hexchat_plugin_init::<$x>(
+                plugin_handle,
+                plugin_name,
+                plugin_desc,
+                plugin_version,
+                arg,
+            )
         }
 
         #[no_mangle]
-        pub unsafe extern fn hexchat_plugin_deinit(
+        pub unsafe extern "C" fn hexchat_plugin_deinit(
             plugin_handle: *mut $crate::c::hexchat_plugin,
         ) -> ::std::os::raw::c_int {
             $crate::call::hexchat_plugin_deinit::<$x>(plugin_handle)
         }
-    }
+    };
 }
 
 use std::os::raw::{c_char, c_int};

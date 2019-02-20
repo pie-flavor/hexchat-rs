@@ -19,7 +19,8 @@ impl Context {
         let description = to_cstring(description);
         let version = to_cstring(version);
         let handle = unsafe {
-            c::hexchat_plugingui_add(
+            c!(
+                hexchat_plugingui_add,
                 self.handle,
                 path.as_ptr(),
                 name.as_ptr(),
@@ -35,7 +36,7 @@ impl Context {
     /// list.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_fake_plugin(&self, plugin: FakePlugin) {
-        unsafe { c::hexchat_plugingui_remove(self.handle, plugin.handle) }
+        unsafe { c!(hexchat_plugingui_remove, self.handle, plugin.handle) }
     }
 }
 

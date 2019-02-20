@@ -12,7 +12,7 @@ impl Context {
     pub fn print_plain(&self, text: &str) {
         let text = to_cstring(text);
         unsafe {
-            c::hexchat_print(self.handle, text.as_ptr());
+            c!(hexchat_print, self.handle, text.as_ptr());
         }
     }
     /// Prints a specific print event to the current tab. Returns whether or not it succeeded.
@@ -20,10 +20,16 @@ impl Context {
         let event = to_cstring(event.0);
         let res = unsafe {
             match arguments {
-                [] => c::hexchat_emit_print(self.handle, event.as_ptr(), ptr::null::<()>()),
+                [] => c!(
+                    hexchat_emit_print,
+                    self.handle,
+                    event.as_ptr(),
+                    ptr::null::<()>()
+                ),
                 [arg_1] => {
                     let arg_1 = to_cstring(arg_1.as_ref());
-                    c::hexchat_emit_print(
+                    c!(
+                        hexchat_emit_print,
                         self.handle,
                         event.as_ptr(),
                         arg_1.as_ptr(),
@@ -32,7 +38,8 @@ impl Context {
                 }
                 [arg_1, arg_2] => {
                     let (arg_1, arg_2) = (to_cstring(arg_1.as_ref()), to_cstring(arg_2.as_ref()));
-                    c::hexchat_emit_print(
+                    c!(
+                        hexchat_emit_print,
                         self.handle,
                         event.as_ptr(),
                         arg_1.as_ptr(),
@@ -46,7 +53,8 @@ impl Context {
                         to_cstring(arg_2.as_ref()),
                         to_cstring(arg_3.as_ref()),
                     );
-                    c::hexchat_emit_print(
+                    c!(
+                        hexchat_emit_print,
                         self.handle,
                         event.as_ptr(),
                         arg_1.as_ptr(),
@@ -62,7 +70,8 @@ impl Context {
                         to_cstring(arg_3.as_ref()),
                         to_cstring(arg_4.as_ref()),
                     );
-                    c::hexchat_emit_print(
+                    c!(
+                        hexchat_emit_print,
                         self.handle,
                         event.as_ptr(),
                         arg_1.as_ptr(),
@@ -85,12 +94,13 @@ impl Context {
         arguments: &[impl AsRef<str>],
     ) -> bool {
         unsafe {
-            let event_attrs = c::hexchat_event_attrs_create(self.handle);
+            let event_attrs = c!(hexchat_event_attrs_create, self.handle);
             let unixtime = timestamp.timestamp();
             (*event_attrs).server_time_utc = unixtime;
             let event = to_cstring(event.0);
             let res = match arguments {
-                [] => c::hexchat_emit_print_attrs(
+                [] => c!(
+                    hexchat_emit_print_attrs,
                     self.handle,
                     event_attrs,
                     event.as_ptr(),
@@ -98,7 +108,8 @@ impl Context {
                 ),
                 [arg_1] => {
                     let arg_1 = to_cstring(arg_1.as_ref());
-                    c::hexchat_emit_print_attrs(
+                    c!(
+                        hexchat_emit_print_attrs,
                         self.handle,
                         event_attrs,
                         event.as_ptr(),
@@ -108,7 +119,8 @@ impl Context {
                 }
                 [arg_1, arg_2] => {
                     let (arg_1, arg_2) = (to_cstring(arg_1.as_ref()), to_cstring(arg_2.as_ref()));
-                    c::hexchat_emit_print_attrs(
+                    c!(
+                        hexchat_emit_print_attrs,
                         self.handle,
                         event_attrs,
                         event.as_ptr(),
@@ -123,7 +135,8 @@ impl Context {
                         to_cstring(arg_2.as_ref()),
                         to_cstring(arg_3.as_ref()),
                     );
-                    c::hexchat_emit_print_attrs(
+                    c!(
+                        hexchat_emit_print_attrs,
                         self.handle,
                         event_attrs,
                         event.as_ptr(),
@@ -140,7 +153,8 @@ impl Context {
                         to_cstring(arg_3.as_ref()),
                         to_cstring(arg_4.as_ref()),
                     );
-                    c::hexchat_emit_print_attrs(
+                    c!(
+                        hexchat_emit_print_attrs,
                         self.handle,
                         event_attrs,
                         event.as_ptr(),
@@ -152,7 +166,7 @@ impl Context {
                     )
                 }
             };
-            c::hexchat_event_attrs_free(self.handle, event_attrs);
+            c!(hexchat_event_attrs_free, self.handle, event_attrs);
             res != 0
         }
     }
@@ -165,15 +179,16 @@ impl Context {
         args: &[impl AsRef<str>],
     ) -> bool {
         unsafe {
-            let ctx = c::hexchat_get_context(self.handle);
-            if c::hexchat_set_context(self.handle, channel.handle) == 0 {
+            let ctx = c!(hexchat_get_context, self.handle);
+            if c!(hexchat_set_context, self.handle, channel.handle) == 0 {
                 return false;
             }
             let res = self.print_event(event, args);
-            if c::hexchat_set_context(self.handle, ctx) == 0 {
-                c::hexchat_set_context(
+            if c!(hexchat_set_context, self.handle, ctx) == 0 {
+                c!(
+                    hexchat_set_context,
                     self.handle,
-                    c::hexchat_find_context(self.handle, ptr::null(), ptr::null()),
+                    c!(hexchat_find_context, self.handle, ptr::null(), ptr::null()),
                 );
             }
             res
@@ -189,15 +204,16 @@ impl Context {
         args: &[impl AsRef<str>],
     ) -> bool {
         unsafe {
-            let ctx = c::hexchat_get_context(self.handle);
-            if c::hexchat_set_context(self.handle, channel.handle) == 0 {
+            let ctx = c!(hexchat_get_context, self.handle);
+            if c!(hexchat_set_context, self.handle, channel.handle) == 0 {
                 return false;
             }
             let res = self.print_event_at(event, &timestamp, args);
-            if c::hexchat_set_context(self.handle, ctx) == 0 {
-                c::hexchat_set_context(
+            if c!(hexchat_set_context, self.handle, ctx) == 0 {
+                c!(
+                    hexchat_set_context,
                     self.handle,
-                    c::hexchat_find_context(self.handle, ptr::null(), ptr::null()),
+                    c!(hexchat_find_context, self.handle, ptr::null(), ptr::null()),
                 );
             }
             res
@@ -216,7 +232,8 @@ impl Context {
             .collect::<Box<[_]>>();
         let ptr_ptr = Box::into_raw(ptrs);
         unsafe {
-            c::hexchat_send_modes(
+            c!(
+                hexchat_send_modes,
                 self.handle,
                 ptr_ptr as _,
                 len as _,
@@ -243,7 +260,8 @@ impl Context {
             .collect::<Box<[_]>>();
         let ptr_ptr = Box::into_raw(ptrs);
         unsafe {
-            c::hexchat_send_modes(
+            c!(
+                hexchat_send_modes,
                 self.handle,
                 ptr_ptr as _,
                 targets.len() as _,
@@ -267,15 +285,16 @@ impl Context {
         channel: &ChannelRef,
     ) -> bool {
         unsafe {
-            let ctx = c::hexchat_get_context(self.handle);
-            if c::hexchat_set_context(self.handle, channel.handle) == 0 {
+            let ctx = c!(hexchat_get_context, self.handle);
+            if c!(hexchat_set_context, self.handle, channel.handle) == 0 {
                 return false;
             }
             let res = self.add_modes(targets, mode);
-            if c::hexchat_set_context(self.handle, ctx) == 0 {
-                c::hexchat_set_context(
+            if c!(hexchat_set_context, self.handle, ctx) == 0 {
+                c!(
+                    hexchat_set_context,
                     self.handle,
-                    c::hexchat_find_context(self.handle, ptr::null(), ptr::null()),
+                    c!(hexchat_find_context, self.handle, ptr::null(), ptr::null()),
                 );
             }
             res
@@ -290,15 +309,16 @@ impl Context {
         channel: &ChannelRef,
     ) -> bool {
         unsafe {
-            let ctx = c::hexchat_get_context(self.handle);
-            if c::hexchat_set_context(self.handle, channel.handle) == 0 {
+            let ctx = c!(hexchat_get_context, self.handle);
+            if c!(hexchat_set_context, self.handle, channel.handle) == 0 {
                 return false;
             }
             let res = self.remove_modes(targets, mode);
-            if c::hexchat_set_context(self.handle, ctx) == 0 {
-                c::hexchat_set_context(
+            if c!(hexchat_set_context, self.handle, ctx) == 0 {
+                c!(
+                    hexchat_set_context,
                     self.handle,
-                    c::hexchat_find_context(self.handle, ptr::null(), ptr::null()),
+                    c!(hexchat_find_context, self.handle, ptr::null(), ptr::null()),
                 );
             }
             res
@@ -308,7 +328,7 @@ impl Context {
     pub fn name_cmp(&self, nick1: &str, nick2: &str) -> Ordering {
         let nick1 = to_cstring(nick1);
         let nick2 = to_cstring(nick2);
-        let res = unsafe { c::hexchat_nickcmp(self.handle, nick1.as_ptr(), nick2.as_ptr()) };
+        let res = unsafe { c!(hexchat_nickcmp, self.handle, nick1.as_ptr(), nick2.as_ptr()) };
         res.cmp(&0)
     }
     /// Strips color characters from a string. Returns the stripped string, or `Err` if the
@@ -328,7 +348,8 @@ impl Context {
     }
     fn strip(&self, string: &str, mode: i32) -> Result<String, ()> {
         let stripped = unsafe {
-            c::hexchat_strip(
+            c!(
+                hexchat_strip,
                 self.handle,
                 string.as_bytes() as *const [u8] as _,
                 string.len() as _,
@@ -341,7 +362,7 @@ impl Context {
             let stripped_string = unsafe { from_cstring(stripped) };
             let res = stripped_string.to_string();
             unsafe {
-                c::hexchat_free(self.handle, stripped as _);
+                c!(hexchat_free, self.handle, stripped as _);
             }
             Ok(res)
         }
@@ -363,7 +384,8 @@ impl Context {
     }
     fn strip_in_place(&self, string: &mut String, mode: i32) -> Result<(), ()> {
         let stripped = unsafe {
-            c::hexchat_strip(
+            c!(
+                hexchat_strip,
                 self.handle,
                 string.as_bytes() as *const [u8] as _,
                 string.len() as _,
@@ -377,7 +399,7 @@ impl Context {
             string.clear();
             string.push_str(stripped_string.as_str());
             unsafe {
-                c::hexchat_free(self.handle, stripped as _);
+                c!(hexchat_free, self.handle, stripped as _);
             }
             Ok(())
         }

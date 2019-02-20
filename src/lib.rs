@@ -82,7 +82,7 @@ impl Context {
     pub fn send_command(&self, command: &str) {
         let command = to_cstring(command);
         unsafe {
-            c::hexchat_command(self.handle, command.as_ptr());
+            c!(hexchat_command, self.handle, command.as_ptr());
         }
     }
 }

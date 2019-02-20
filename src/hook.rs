@@ -40,7 +40,8 @@ impl Context {
         let name = to_cstring(name);
         let help_text = to_cstring(help_text);
         let hook_ptr = unsafe {
-            c::hexchat_hook_command(
+            c!(
+                hexchat_hook_command,
                 self.handle,
                 name.as_ptr(),
                 c_int::from(priority.0),
@@ -56,7 +57,7 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn deregister_command(&self, command: Command) {
         unsafe {
-            let ptr = c::hexchat_unhook(self.handle, command.0);
+            let ptr = c!(hexchat_unhook, self.handle, command.0);
             let ptr = ptr as *mut CommandHookRef;
             Box::from_raw(ptr);
         }
@@ -85,7 +86,8 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let name = to_cstring(event.0);
         let hook_ptr = unsafe {
-            c::hexchat_hook_print_attrs(
+            c!(
+                hexchat_hook_print_attrs,
                 self.handle,
                 name.as_ptr(),
                 c_int::from(priority.0),
@@ -100,7 +102,7 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_print_event_listener(&self, listener: PrintEventListener) {
         unsafe {
-            let ptr = c::hexchat_unhook(self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut PrintHookRef;
             Box::from_raw(ptr);
         }
@@ -128,7 +130,8 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let name = to_cstring(event.0);
         let hook_ptr = unsafe {
-            c::hexchat_hook_print(
+            c!(
+                hexchat_hook_print,
                 self.handle,
                 name.as_ptr(),
                 c_int::from(priority.0),
@@ -143,7 +146,7 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_window_event_listener(&self, listener: WindowEventListener) {
         unsafe {
-            let ptr = c::hexchat_unhook(self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut ContextHookRef;
             Box::from_raw(ptr);
         }
@@ -174,7 +177,8 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let event = to_cstring(event);
         let hook_ptr = unsafe {
-            c::hexchat_hook_server_attrs(
+            c!(
+                hexchat_hook_server_attrs,
                 self.handle,
                 event.as_ptr(),
                 c_int::from(priority.0),
@@ -189,7 +193,7 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_raw_server_event_listener(&self, listener: RawServerEventListener) {
         unsafe {
-            let ptr = c::hexchat_unhook(self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut ServerHookRef;
             Box::from_raw(ptr);
         }
@@ -269,7 +273,7 @@ unsafe extern "C" fn context_hook(_word: *mut *mut c_char, user_data: *mut c_voi
     let context = Context {
         handle: (*user_data).ph,
     };
-    let ctx = c::hexchat_get_context((*user_data).ph);
+    let ctx = c!(hexchat_get_context, (*user_data).ph);
     let cref = ChannelRef {
         ph: (*user_data).ph,
         handle: ctx,

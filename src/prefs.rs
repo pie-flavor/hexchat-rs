@@ -11,8 +11,15 @@ impl Context {
         let mut res_str = ptr::null();
         let mut res_int = 0;
         let name = to_cstring(name);
-        let res =
-            unsafe { c::hexchat_get_prefs(self.handle, name.as_ptr(), &mut res_str, &mut res_int) };
+        let res = unsafe {
+            c!(
+                hexchat_get_prefs,
+                self.handle,
+                name.as_ptr(),
+                &mut res_str,
+                &mut res_int
+            )
+        };
         match res {
             1 => Some(GlobalPreferenceValue::String(unsafe {
                 from_cstring(res_str)
@@ -27,7 +34,13 @@ impl Context {
         let mut res_int = 0;
         let mut res_str = ptr::null();
         let res = unsafe {
-            c::hexchat_get_prefs(self.handle, CURSOR_POS.as_ptr(), &mut res_str, &mut res_int)
+            c!(
+                hexchat_get_prefs,
+                self.handle,
+                CURSOR_POS.as_ptr(),
+                &mut res_str,
+                &mut res_int
+            )
         };
         match res {
             2 => Some(res_int as usize),
@@ -39,7 +52,13 @@ impl Context {
         let mut res_int = 0;
         let mut res_str = ptr::null();
         let res = unsafe {
-            c::hexchat_get_prefs(self.handle, SERVER_ID.as_ptr(), &mut res_str, &mut res_int)
+            c!(
+                hexchat_get_prefs,
+                self.handle,
+                SERVER_ID.as_ptr(),
+                &mut res_str,
+                &mut res_int
+            )
         };
         match res {
             2 => Some(res_int as _),
@@ -51,8 +70,14 @@ impl Context {
     pub fn set_pref_string(&self, name: &str, value: &str) -> Result<(), ()> {
         let name = to_cstring(name);
         let value = to_cstring(value);
-        let res =
-            unsafe { c::hexchat_pluginpref_set_str(self.handle, name.as_ptr(), value.as_ptr()) };
+        let res = unsafe {
+            c!(
+                hexchat_pluginpref_set_str,
+                self.handle,
+                name.as_ptr(),
+                value.as_ptr()
+            )
+        };
         if res == 0 {
             Err(())
         } else {
@@ -63,7 +88,14 @@ impl Context {
     /// was an IO error.
     pub fn set_pref_int(&self, name: &str, value: u32) -> Result<(), ()> {
         let name = to_cstring(name);
-        let res = unsafe { c::hexchat_pluginpref_set_int(self.handle, name.as_ptr(), value as _) };
+        let res = unsafe {
+            c!(
+                hexchat_pluginpref_set_int,
+                self.handle,
+                name.as_ptr(),
+                value as _
+            )
+        };
         if res == 0 {
             Err(())
         } else {
@@ -76,7 +108,8 @@ impl Context {
         let name = to_cstring(name);
         let mut string_buf = [0 as c_char; 512];
         let res = unsafe {
-            c::hexchat_pluginpref_get_str(
+            c!(
+                hexchat_pluginpref_get_str,
                 self.handle,
                 name.as_ptr(),
                 &mut string_buf as *mut [c_char] as _,
@@ -92,7 +125,7 @@ impl Context {
     /// preference exists or there was an IO error.
     pub fn get_pref_int(&self, name: &str) -> Option<u32> {
         let name = to_cstring(name);
-        let res = unsafe { c::hexchat_pluginpref_get_int(self.handle, name.as_ptr()) };
+        let res = unsafe { c!(hexchat_pluginpref_get_int, self.handle, name.as_ptr()) };
         if res == -1 {
             None
         } else {
@@ -103,7 +136,7 @@ impl Context {
     /// if no such preference exists or there was an IO error.
     pub fn delete_pref(&self, name: &str) -> Result<(), ()> {
         let name = to_cstring(name);
-        let res = unsafe { c::hexchat_pluginpref_delete(self.handle, name.as_ptr()) };
+        let res = unsafe { c!(hexchat_pluginpref_delete, self.handle, name.as_ptr()) };
         if res == 0 {
             Err(())
         } else {
@@ -114,7 +147,11 @@ impl Context {
     pub fn get_prefs(&self) -> Vec<String> {
         let mut buf = [0 as c_char; 4096];
         unsafe {
-            c::hexchat_pluginpref_list(self.handle, &mut buf as *mut [c_char] as _);
+            c!(
+                hexchat_pluginpref_list,
+                self.handle,
+                &mut buf as *mut [c_char] as _
+            );
         }
         let list = unsafe { CStr::from_ptr(&buf as *const [c_char] as _).to_string_lossy() };
         list.split(',').map(|x| x.to_string()).collect()
