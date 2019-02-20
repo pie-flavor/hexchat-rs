@@ -1,17 +1,22 @@
 #![allow(clippy::type_complexity)] // todo fix when intellij-rust supports trait typedefs
 
+use crate::call::{self, PhWrapper};
 use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, WindowEvent};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int};
 
 /// A handle to a registered command.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Command(*mut c::hexchat_hook);
 /// A handle to a registered print event listener.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PrintEventListener(*mut c::hexchat_hook);
 /// A handle to a registered window event listener.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct WindowEventListener(*mut c::hexchat_hook);
 /// A handle to a registered raw server event listener.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct RawServerEventListener(*mut c::hexchat_hook);
 
 impl Context {
@@ -50,12 +55,26 @@ impl Context {
                 ptr as _,
             )
         };
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.commands.insert(Command(hook_ptr));
+            }
+        }
         Command(hook_ptr)
     }
 
     /// Deregisters a command registered by `register_command`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn deregister_command(&self, command: Command) {
+        self.dealloc_command(command);
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.commands.remove(&command);
+            }
+        }
+    }
+
+    pub(crate) fn dealloc_command(&self, command: Command) {
         unsafe {
             let ptr = c!(hexchat_unhook, self.handle, command.0);
             let ptr = ptr as *mut CommandHookRef;
@@ -95,12 +114,26 @@ impl Context {
                 ptr as _,
             )
         };
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.print_events.insert(PrintEventListener(hook_ptr));
+            }
+        }
         PrintEventListener(hook_ptr)
     }
 
     /// Removes a listener added by `add_print_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_print_event_listener(&self, listener: PrintEventListener) {
+        self.dealloc_print_event_listener(listener);
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.print_events.remove(&listener);
+            }
+        }
+    }
+
+    pub(crate) fn dealloc_print_event_listener(&self, listener: PrintEventListener) {
         unsafe {
             let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut PrintHookRef;
@@ -139,12 +172,26 @@ impl Context {
                 ptr as _,
             )
         };
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.window_events.insert(WindowEventListener(hook_ptr));
+            }
+        }
         WindowEventListener(hook_ptr)
     }
 
     /// Removes a listener added by `add_window_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_window_event_listener(&self, listener: WindowEventListener) {
+        self.dealloc_window_event_listener(listener);
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.window_events.remove(&listener);
+            }
+        }
+    }
+
+    pub(crate) fn dealloc_window_event_listener(&self, listener: WindowEventListener) {
         unsafe {
             let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut ContextHookRef;
@@ -186,12 +233,28 @@ impl Context {
                 ptr as _,
             )
         };
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin
+                    .server_events
+                    .insert(RawServerEventListener(hook_ptr));
+            }
+        }
         RawServerEventListener(hook_ptr)
     }
 
     /// Removes a listener added by `add_raw_server_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_raw_server_event_listener(&self, listener: RawServerEventListener) {
+        self.dealloc_raw_server_event_listener(listener);
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.server_events.remove(&listener);
+            }
+        }
+    }
+
+    pub(crate) fn dealloc_raw_server_event_listener(&self, listener: RawServerEventListener) {
         unsafe {
             let ptr = c!(hexchat_unhook, self.handle, listener.0);
             let ptr = ptr as *mut ServerHookRef;

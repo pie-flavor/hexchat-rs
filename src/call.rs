@@ -46,7 +46,7 @@ macro_rules! plugin {
 
 use lazy_static::lazy_static;
 use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_int};
 use std::sync::Mutex;
 
@@ -56,20 +56,21 @@ use crate::{
 };
 
 lazy_static! {
-    static ref PLUGINS: Mutex<HashMap<PhWrapper, PluginDef>> = Mutex::new(HashMap::new());
-    static ref TYPES: Mutex<HashMap<TypeId, PhWrapper>> = Mutex::new(HashMap::new());
+    pub(crate) static ref PLUGINS: Mutex<HashMap<PhWrapper, PluginDef>> =
+        Mutex::new(HashMap::new());
+    pub(crate) static ref TYPES: Mutex<HashMap<TypeId, PhWrapper>> = Mutex::new(HashMap::new());
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-struct PhWrapper(*mut c::hexchat_plugin);
+pub(crate) struct PhWrapper(pub(crate) *mut c::hexchat_plugin);
 unsafe impl Send for PhWrapper {}
 
-struct PluginDef {
-    commands: Vec<Command>,
-    print_events: Vec<PrintEventListener>,
-    window_events: Vec<WindowEventListener>,
-    server_events: Vec<RawServerEventListener>,
-    instance: Box<dyn Any>,
+pub(crate) struct PluginDef {
+    pub(crate) commands: HashSet<Command>,
+    pub(crate) print_events: HashSet<PrintEventListener>,
+    pub(crate) window_events: HashSet<WindowEventListener>,
+    pub(crate) server_events: HashSet<RawServerEventListener>,
+    pub(crate) instance: Box<dyn Any>,
 }
 unsafe impl Send for PluginDef {}
 
@@ -94,10 +95,10 @@ where
     });
     let type_id = t.type_id();
     let plugin_def = PluginDef {
-        commands: Vec::new(),
-        print_events: Vec::new(),
-        window_events: Vec::new(),
-        server_events: Vec::new(),
+        commands: HashSet::new(),
+        print_events: HashSet::new(),
+        window_events: HashSet::new(),
+        server_events: HashSet::new(),
         instance: Box::new(t),
     };
     if let Ok(mut types) = TYPES.lock() {
@@ -130,16 +131,16 @@ where
                 commands,
             } = plugin_def;
             for event in server_events {
-                context.remove_raw_server_event_listener(event);
+                context.dealloc_raw_server_event_listener(event);
             }
             for event in window_events {
-                context.remove_window_event_listener(event);
+                context.dealloc_window_event_listener(event);
             }
             for event in print_events {
-                context.remove_print_event_listener(event);
+                context.dealloc_print_event_listener(event);
             }
             for command in commands {
-                context.deregister_command(command);
+                context.dealloc_command(command);
             }
             if let Ok(mut types) = TYPES.lock() {
                 types.remove(&instance.type_id());
