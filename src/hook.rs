@@ -307,7 +307,9 @@ unsafe extern "C" fn server_hook(
     ((*user_data).function)(&context, &vec, utc) as _
 }
 
-/// The priority of an event listener or command. This represents what order listeners or command
+/// The priority of an event listener or command.
+///
+/// This represents what order listeners or command
 /// handlers will be called, and earlier listeners or command handlers can prevent later listeners
 /// or command handlers from seeing the event or command via `EatMode::Plugin` or `EatMode::All`.
 /// `Priority` instances can be constructed from any `i8`, but you are encouraged to use the

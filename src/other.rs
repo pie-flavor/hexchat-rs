@@ -1,9 +1,10 @@
 /// Represents a 'print event' in HexChat, i.e. an invocation of one of a hundred and fifty
-/// different format strings corresponding to any possible action. For example, `PrintEvent::JOIN`
-/// corresponds to channel join messages. Note that these are only the physically displayed
-/// messages; this should only be used for message formatting. If you want to listen to, respond to,
-/// and appropriately eat the actual server-to-client correspondence, you should instead be using
-/// raw server event listeners.
+/// different format strings corresponding to any possible action.
+///
+/// For example, `PrintEvent::JOIN` corresponds to channel join messages. Note that these are only
+/// the physically displayed messages; this should only be used for message formatting. If you want
+/// to listen to, respond to, and appropriately eat the actual server-to-client correspondence, you
+/// should instead be using raw server event listeners.
 ///
 /// TODO Document this insanity.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -40,7 +40,9 @@ impl Context {
     }
 }
 
-/// A handle to a fake plugin entry in the plugin list. In case you missed it from the
+/// A handle to a fake plugin entry in the plugin list.
+///
+/// In case you missed it from the
 /// `Context::add_fake_plugin` documentation, please do not add your crate-registered plugin to this
 /// list.
 pub struct FakePlugin {
