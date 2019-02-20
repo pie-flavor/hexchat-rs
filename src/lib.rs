@@ -9,10 +9,14 @@
 //! of for you by the `plugin!` macro.
 
 #![deny(missing_docs, clippy::pedantic)]
-#![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+#![allow(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 #![feature(slice_patterns, trait_alias, type_alias_enum_variants, never_type)]
 
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 #[doc(hidden)]
@@ -53,8 +57,7 @@ pub mod call;
 //}
 
 fn to_cstring(str: &str) -> CString {
-    CString::new(str)
-        .unwrap_or_else(|_| CString::new(str.replace('\0', "")).unwrap())
+    CString::new(str).unwrap_or_else(|_| CString::new(str.replace('\0', "")).unwrap())
 }
 
 unsafe fn from_cstring(ptr: *const c_char) -> String {
@@ -78,7 +81,9 @@ impl Context {
     /// Executes a command as though it were typed in HexChat's input box.
     pub fn send_command(&self, command: &str) {
         let command = to_cstring(command);
-        unsafe { c::hexchat_command(self.handle, command.as_ptr()); }
+        unsafe {
+            c::hexchat_command(self.handle, command.as_ptr());
+        }
     }
 }
 

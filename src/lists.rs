@@ -1,32 +1,46 @@
-use std::marker::PhantomData;
-use std::net::Ipv4Addr;
-use std::path::{Path, PathBuf};
-use std::mem;
-use std::ptr;
-use std::ops::Deref;
-use chrono::{NaiveDateTime, DateTime, Utc, TimeZone};
-use crate::{Context, c, to_cstring, from_cstring_opt};
+use crate::{c, from_cstring_opt, to_cstring, Context};
 use bitflags::bitflags;
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use std::marker::PhantomData;
+use std::mem;
+use std::net::Ipv4Addr;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
+use std::ptr;
 
-struct XList<T> where T: FromXList {
+struct XList<T>
+where
+    T: FromXList,
+{
     ph: *mut c::hexchat_plugin,
     handle: *mut c::hexchat_list,
     _ref: PhantomData<c::hexchat_list>,
     _item: PhantomData<T>,
 }
 
-impl<T> Drop for XList<T> where T: FromXList {
+impl<T> Drop for XList<T>
+where
+    T: FromXList,
+{
     fn drop(&mut self) {
-        unsafe { c::hexchat_list_free(self.ph, self.handle); }
+        unsafe {
+            c::hexchat_list_free(self.ph, self.handle);
+        }
     }
 }
 
-trait FromXList where Self: Sized {
+trait FromXList
+where
+    Self: Sized,
+{
     const LIST_NAME: &'static str;
     fn map_list(list: &XList<Self>) -> Self;
 }
 
-impl<T> XList<T> where T: FromXList {
+impl<T> XList<T>
+where
+    T: FromXList,
+{
     fn new(ph: *mut c::hexchat_plugin) -> Self {
         let name = to_cstring(T::LIST_NAME);
         Self {
@@ -37,9 +51,7 @@ impl<T> XList<T> where T: FromXList {
         }
     }
     fn move_next(&mut self) -> bool {
-        unsafe {
-            c::hexchat_list_next(self.ph, self.handle) != 0
-        }
+        unsafe { c::hexchat_list_next(self.ph, self.handle) != 0 }
     }
     fn get_item_string(&self, field: &str) -> Option<String> {
         unsafe {
@@ -85,7 +97,10 @@ impl<T> XList<T> where T: FromXList {
     }
 }
 
-impl<T> Iterator for XList<T> where T: FromXList {
+impl<T> Iterator for XList<T>
+where
+    T: FromXList,
+{
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
         let res = unsafe { c::hexchat_list_next(self.ph, self.handle) };
@@ -260,12 +275,17 @@ pub enum ChannelType {
     /// A channel notice channel.
     Notice,
     /// A server notice channel.
-    SNotice
+    SNotice,
 }
 
 impl ChannelType {
-    const VALUES: [Self; 5] = [Self::Server, Self::Channel, Self::Dialog, Self::Notice,
-        Self::SNotice];
+    const VALUES: [Self; 5] = [
+        Self::Server,
+        Self::Channel,
+        Self::Dialog,
+        Self::Notice,
+        Self::SNotice,
+    ];
 }
 
 /// A full set of information about a DCC transfer.
@@ -348,10 +368,14 @@ impl FromXList for DccTransferInfo {
         let file_size_high = list.get_item_int("sizehigh");
         let file_size = merge_unsigned(file_size_low, file_size_high);
         Self {
-            address: Ipv4Addr::from(
-                unsafe { mem::transmute::<_, u32>(list.get_item_int("address32")) }),
+            address: Ipv4Addr::from(unsafe {
+                mem::transmute::<_, u32>(list.get_item_int("address32"))
+            }),
             bytes_per_second: list.get_item_int("cps") as _,
-            destination: list.get_item_string("destfile").map(PathBuf::from).unwrap_or_default(),
+            destination: list
+                .get_item_string("destfile")
+                .map(PathBuf::from)
+                .unwrap_or_default(),
             filename: list.get_item_string("file").unwrap_or_default(),
             sender_nick: list.get_item_string("nick").unwrap_or_default(),
             port: list.get_item_int("port") as _,
@@ -382,8 +406,14 @@ pub enum DccTransferStatus {
 }
 
 impl DccTransferStatus {
-    const VALUES: [Self; 6] = [Self::Queued, Self::Active, Self::Failed, Self::Done,
-        Self::Connecting, Self::Aborted];
+    const VALUES: [Self; 6] = [
+        Self::Queued,
+        Self::Active,
+        Self::Failed,
+        Self::Done,
+        Self::Connecting,
+        Self::Aborted,
+    ];
 }
 
 /// An enumeration of all possible DCC transfer types.
@@ -493,8 +523,10 @@ impl FromXList for NotifyEntry {
     const LIST_NAME: &'static str = "notify";
     fn map_list(list: &XList<Self>) -> Self {
         Self {
-            networks: list.get_item_string("networks").map(|t| t.split(',').map(String::from)
-                .collect()).unwrap_or_default(),
+            networks: list
+                .get_item_string("networks")
+                .map(|t| t.split(',').map(String::from).collect())
+                .unwrap_or_default(),
             nick: list.get_item_string("nick").unwrap_or_default(),
             is_online: list.get_item_int("flags") == 0,
             time_online: list.get_item_time("on"),
@@ -570,29 +602,30 @@ impl FromXList for UserInfo {
 
 impl Context {
     /// Gets all channels currently open.
-    pub fn get_all_channels(&self) -> impl Iterator<Item=ChannelInfo> {
+    pub fn get_all_channels(&self) -> impl Iterator<Item = ChannelInfo> {
         XList::new(self.handle)
     }
     /// Gets all DCC transfers currently active.
-    pub fn get_current_dcc_transfers(&self) -> impl Iterator<Item=DccTransferInfo> {
+    pub fn get_current_dcc_transfers(&self) -> impl Iterator<Item = DccTransferInfo> {
         XList::new(self.handle)
     }
     /// Gets all entries in the ignore list.
-    pub fn get_ignore_entries(&self) -> impl Iterator<Item=IgnoreEntry> {
+    pub fn get_ignore_entries(&self) -> impl Iterator<Item = IgnoreEntry> {
         XList::new(self.handle)
     }
     /// Gets all entries in the notify list.
-    pub fn get_notify_users(&self) -> impl Iterator<Item=NotifyEntry> {
+    pub fn get_notify_users(&self) -> impl Iterator<Item = NotifyEntry> {
         XList::new(self.handle)
     }
     /// Gets all the users in the current channel.
-    pub fn get_users_in_current_channel(&self) -> impl Iterator<Item=UserInfo> {
+    pub fn get_users_in_current_channel(&self) -> impl Iterator<Item = UserInfo> {
         XList::new(self.handle)
     }
     /// Gets all the users in a specific channel, or `None` if the channel is invalid.
-    pub fn get_users_in_channel(&self, channel: &ChannelRef)
-        -> Option<impl Iterator<Item=UserInfo>>
-    {
+    pub fn get_users_in_channel(
+        &self,
+        channel: &ChannelRef,
+    ) -> Option<impl Iterator<Item = UserInfo>> {
         unsafe {
             let context = Self { handle: channel.ph };
             let ctx = c::hexchat_get_context(channel.ph);
@@ -601,8 +634,10 @@ impl Context {
             } else {
                 let list = context.get_users_in_current_channel();
                 if c::hexchat_set_context(channel.ph, ctx) == 0 {
-                    c::hexchat_set_context(channel.ph,
-                        c::hexchat_find_context(channel.ph, ptr::null(), ptr::null()));
+                    c::hexchat_set_context(
+                        channel.ph,
+                        c::hexchat_find_context(channel.ph, ptr::null(), ptr::null()),
+                    );
                 }
                 Some(list)
             }
@@ -630,7 +665,7 @@ impl ChannelRef {
         let mut list = XList::new(self.ph);
         while list.move_next() {
             if list.get_item_context("context") == self.handle {
-                return Some(list.get_current())
+                return Some(list.get_current());
             }
         }
         None

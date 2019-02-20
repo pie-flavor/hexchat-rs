@@ -1,4 +1,4 @@
-use crate::{Context, c, ChannelRef, to_cstring};
+use crate::{c, to_cstring, ChannelRef, Context};
 use std::ptr;
 
 impl Context {
@@ -26,9 +26,8 @@ impl Context {
     /// `None` if none exists.
     pub fn get_focused_channel_in_server(&self, server_name: &str) -> Option<ChannelRef> {
         let server_name = to_cstring(server_name);
-        let handle = unsafe {
-            c::hexchat_find_context(self.handle, server_name.as_ptr(), ptr::null())
-        };
+        let handle =
+            unsafe { c::hexchat_find_context(self.handle, server_name.as_ptr(), ptr::null()) };
         if handle.is_null() {
             None
         } else {
@@ -42,9 +41,8 @@ impl Context {
     /// found, or `None` if none exists.
     pub fn get_first_channel(&self, channel_name: &str) -> Option<ChannelRef> {
         let channel_name = to_cstring(channel_name);
-        let handle = unsafe {
-            c::hexchat_find_context(self.handle, ptr::null(), channel_name.as_ptr())
-        };
+        let handle =
+            unsafe { c::hexchat_find_context(self.handle, ptr::null(), channel_name.as_ptr()) };
         if handle.is_null() {
             None
         } else {

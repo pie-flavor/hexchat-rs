@@ -1,9 +1,9 @@
 #![allow(clippy::type_complexity)] // todo fix when intellij-rust supports trait typedefs
 
-use crate::{Context, c, from_cstring, to_cstring, PrintEvent, ChannelRef, WindowEvent};
-use std::os::raw::{c_char, c_int};
+use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, WindowEvent};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
-use chrono::{DateTime, Utc, TimeZone, NaiveDateTime};
+use std::os::raw::{c_char, c_int};
 
 /// A handle to a registered command.
 pub struct Command(*mut c::hexchat_hook);
@@ -24,9 +24,13 @@ impl Context {
     /// arguments. If you intend to get command arguments, you should probably start at 1; argument
     /// 0 is the name of the command. The callback should return who the command event should be
     /// hidden from.
-    pub fn register_command(&self, name: &str, help_text: &str, priority: Priority,
-        function: impl Fn(&Self, &[String]) -> EatMode + 'static) -> Command
-    {
+    pub fn register_command(
+        &self,
+        name: &str,
+        help_text: &str,
+        priority: Priority,
+        function: impl Fn(&Self, &[String]) -> EatMode + 'static,
+    ) -> Command {
         let hook_ref = CommandHookRef {
             function: Box::new(function),
             ph: self.handle,
@@ -36,8 +40,14 @@ impl Context {
         let name = to_cstring(name);
         let help_text = to_cstring(help_text);
         let hook_ptr = unsafe {
-            c::hexchat_hook_command(self.handle, name.as_ptr(), c_int::from(priority.0),
-                command_hook, help_text.as_ptr(), ptr as _)
+            c::hexchat_hook_command(
+                self.handle,
+                name.as_ptr(),
+                c_int::from(priority.0),
+                command_hook,
+                help_text.as_ptr(),
+                ptr as _,
+            )
         };
         Command(hook_ptr)
     }
@@ -61,9 +71,12 @@ impl Context {
     /// arguments, followed by the time this message was printed. Note that the argument `$1`
     /// corresponds to `args[0]` and so forth. The callback should return who the event should be
     /// hidden from.
-    pub fn add_print_event_listener(&self, event: PrintEvent, priority: Priority,
-        function: impl Fn(&Self, &[String], DateTime<Utc>) -> EatMode + 'static) -> PrintEventListener
-    {
+    pub fn add_print_event_listener(
+        &self,
+        event: PrintEvent,
+        priority: Priority,
+        function: impl Fn(&Self, &[String], DateTime<Utc>) -> EatMode + 'static,
+    ) -> PrintEventListener {
         let hook_ref = PrintHookRef {
             function: Box::new(function),
             ph: self.handle,
@@ -72,8 +85,13 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let name = to_cstring(event.0);
         let hook_ptr = unsafe {
-            c::hexchat_hook_print_attrs(self.handle, name.as_ptr(), c_int::from(priority.0),
-                print_hook, ptr as _)
+            c::hexchat_hook_print_attrs(
+                self.handle,
+                name.as_ptr(),
+                c_int::from(priority.0),
+                print_hook,
+                ptr as _,
+            )
         };
         PrintEventListener(hook_ptr)
     }
@@ -96,9 +114,12 @@ impl Context {
     /// The callback's signature is this context, followed by a `ChannelRef` corresponding to the
     /// channel this event is regarding or the current channel if none applies. The callback should
     /// return who the event should be hidden from.
-    pub fn add_window_event_listener(&self, event: WindowEvent, priority: Priority,
-        function: impl Fn(&Self, ChannelRef) -> EatMode + 'static) -> WindowEventListener
-    {
+    pub fn add_window_event_listener(
+        &self,
+        event: WindowEvent,
+        priority: Priority,
+        function: impl Fn(&Self, ChannelRef) -> EatMode + 'static,
+    ) -> WindowEventListener {
         let context_ref = ContextHookRef {
             function: Box::new(function),
             ph: self.handle,
@@ -107,8 +128,13 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let name = to_cstring(event.0);
         let hook_ptr = unsafe {
-            c::hexchat_hook_print(self.handle, name.as_ptr(), c_int::from(priority.0),
-                context_hook, ptr as _)
+            c::hexchat_hook_print(
+                self.handle,
+                name.as_ptr(),
+                c_int::from(priority.0),
+                context_hook,
+                ptr as _,
+            )
         };
         WindowEventListener(hook_ptr)
     }
@@ -134,10 +160,12 @@ impl Context {
     /// followed by the time this event was sent. If you intend to get event arguments, you probably
     /// should start at 1, since argument 0 is the event name. The callback should return who the
     /// event should be hidden from.
-    pub fn add_raw_server_event_listener(&self, event: &str, priority: Priority,
-        function: impl Fn(&Self, &[String], DateTime<Utc>) -> EatMode + 'static)
-        -> RawServerEventListener
-    {
+    pub fn add_raw_server_event_listener(
+        &self,
+        event: &str,
+        priority: Priority,
+        function: impl Fn(&Self, &[String], DateTime<Utc>) -> EatMode + 'static,
+    ) -> RawServerEventListener {
         let server_ref = ServerHookRef {
             function: Box::new(function),
             ph: self.handle,
@@ -146,8 +174,13 @@ impl Context {
         let ptr = Box::into_raw(boxed);
         let event = to_cstring(event);
         let hook_ptr = unsafe {
-            c::hexchat_hook_server_attrs(self.handle, event.as_ptr(), c_int::from(priority.0),
-                server_hook, ptr as _)
+            c::hexchat_hook_server_attrs(
+                self.handle,
+                event.as_ptr(),
+                c_int::from(priority.0),
+                server_hook,
+                ptr as _,
+            )
         };
         RawServerEventListener(hook_ptr)
     }
@@ -189,7 +222,9 @@ unsafe extern "C" fn command_hook(
     user_data: *mut c_void,
 ) -> c_int {
     let user_data = user_data as *mut CommandHookRef;
-    let context = Context { handle: (*user_data).ph };
+    let context = Context {
+        handle: (*user_data).ph,
+    };
     let mut vec = Vec::new();
     for i in 1..32 {
         let offset = word.offset(i);
@@ -210,7 +245,9 @@ unsafe extern "C" fn print_hook(
     user_data: *mut c_void,
 ) -> c_int {
     let user_data = user_data as *mut PrintHookRef;
-    let context = Context { handle: (*user_data).ph };
+    let context = Context {
+        handle: (*user_data).ph,
+    };
     let mut vec = Vec::new();
     for i in 1..32 {
         let offset = word.offset(i);
@@ -227,12 +264,11 @@ unsafe extern "C" fn print_hook(
     ((*user_data).function)(&context, &vec, utc) as _
 }
 
-unsafe extern "C" fn context_hook(
-    _word: *mut *mut c_char,
-    user_data: *mut c_void,
-) -> c_int {
+unsafe extern "C" fn context_hook(_word: *mut *mut c_char, user_data: *mut c_void) -> c_int {
     let user_data = user_data as *mut ContextHookRef;
-    let context = Context { handle: (*user_data).ph };
+    let context = Context {
+        handle: (*user_data).ph,
+    };
     let ctx = c::hexchat_get_context((*user_data).ph);
     let cref = ChannelRef {
         ph: (*user_data).ph,
@@ -248,7 +284,9 @@ unsafe extern "C" fn server_hook(
     user_data: *mut c_void,
 ) -> c_int {
     let user_data = user_data as *mut ServerHookRef;
-    let context = Context { handle: (*user_data).ph };
+    let context = Context {
+        handle: (*user_data).ph,
+    };
     let mut vec = Vec::new();
     for i in 1..32 {
         let offset = word.offset(i);
@@ -300,5 +338,5 @@ pub enum EatMode {
     /// Hide this event or command from both HexChat and other plugins. This effectively says that
     /// you are the intended receiver of this event or command, and is the option you should use
     /// in most cases.
-    All
+    All,
 }
