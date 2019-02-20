@@ -7,6 +7,8 @@
 //! Do not attempt to define a `main()` symbol; `Plugin::new` is your plugin's 'entry point'. For that
 //! matter, do not attempt to define the HexChat C docs' described `extern fn`s - this is taken care
 //! of for you by the `plugin!` macro.
+//!
+//! If window manipulation is desired, the `window` feature should be enabled.
 
 #![deny(missing_docs, clippy::pedantic)]
 #![allow(
