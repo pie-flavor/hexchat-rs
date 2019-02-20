@@ -3,6 +3,12 @@ name = "hexchat"
 version = "0.1.0"
 authors = ["Adam Spofford <pieflavor.mc@gmail.com>"]
 edition = "2018"
+description = "A safe API for creating HexChat plugins"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/pie-flavor/hexchat-rs/"
+categories = ["api-bindings", "network-programming"]
+keywords = ["hexchat", "xchat", "irc", "chat", "plugin"]
 
 [dependencies]
 libc = "0.2.48"
