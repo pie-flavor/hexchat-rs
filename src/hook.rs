@@ -5,6 +5,7 @@ use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, Window
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int};
+use std::panic::{self, AssertUnwindSafe};
 
 /// A handle to a registered command.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -303,7 +304,18 @@ unsafe extern "C" fn command_hook(
             }
         }
     }
-    ((*user_data).function)(&context, &vec) as _
+    let res =
+        match panic::catch_unwind(AssertUnwindSafe(|| ((*user_data).function)(&context, &vec))) {
+            Ok(eat) => eat,
+            Err(e) => {
+                context.print_plain(&format!("Error in command '/{}'", &vec.join(" ")));
+                if let Some(string) = (*e).downcast_ref::<&str>() {
+                    context.print_plain(&format!("Error message: {}", string));
+                }
+                EatMode::All
+            }
+        };
+    res as _
 }
 
 unsafe extern "C" fn print_hook(
@@ -328,7 +340,10 @@ unsafe extern "C" fn print_hook(
     }
     let naive = NaiveDateTime::from_timestamp((*attrs).server_time_utc as _, 0);
     let utc = Utc.from_utc_datetime(&naive);
-    ((*user_data).function)(&context, &vec, utc) as _
+    panic::catch_unwind(AssertUnwindSafe(|| {
+        ((*user_data).function)(&context, &vec, utc)
+    }))
+    .unwrap_or(EatMode::None) as _
 }
 
 unsafe extern "C" fn context_hook(_word: *mut *mut c_char, user_data: *mut c_void) -> c_int {
@@ -341,7 +356,8 @@ unsafe extern "C" fn context_hook(_word: *mut *mut c_char, user_data: *mut c_voi
         ph: (*user_data).ph,
         handle: ctx,
     };
-    ((*user_data).function)(&context, cref) as _
+    panic::catch_unwind(AssertUnwindSafe(|| ((*user_data).function)(&context, cref)))
+        .unwrap_or(EatMode::None) as _
 }
 
 unsafe extern "C" fn server_hook(
@@ -367,7 +383,10 @@ unsafe extern "C" fn server_hook(
     }
     let naive = NaiveDateTime::from_timestamp((*attrs).server_time_utc as _, 0);
     let utc = Utc.from_utc_datetime(&naive);
-    ((*user_data).function)(&context, &vec, utc) as _
+    panic::catch_unwind(AssertUnwindSafe(|| {
+        ((*user_data).function)(&context, &vec, utc)
+    }))
+    .unwrap_or(EatMode::None) as _
 }
 
 /// The priority of an event listener or command.

@@ -48,6 +48,7 @@ use lazy_static::lazy_static;
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_int};
+use std::panic;
 use std::sync::Mutex;
 
 use crate::{
@@ -90,9 +91,34 @@ where
     *plugin_desc = desc.into_raw();
     let version = to_cstring(T::VERSION);
     *plugin_version = version.into_raw();
-    let t = T::new(&Context {
-        handle: plugin_handle,
+    let t = panic::catch_unwind(|| {
+        T::new(&Context {
+            handle: plugin_handle,
+        })
     });
+    let t = match t {
+        Ok(t) => t,
+        Err(e) => {
+            Context {
+                handle: plugin_handle,
+            }
+            .send_command(&if let Some(string) = (*e).downcast_ref::<&str>() {
+                format!(
+                    "GUI MSGBOX Plugin '{} {}' failed to load. Panic message: {}",
+                    T::NAME,
+                    T::VERSION,
+                    string
+                )
+            } else {
+                format!(
+                    "GUI MSGBOX Plugin '{} {}' failed to load.",
+                    T::NAME,
+                    T::VERSION
+                )
+            });
+            return -4;
+        }
+    };
     let type_id = t.type_id();
     let plugin_def = PluginDef {
         commands: HashSet::new(),
