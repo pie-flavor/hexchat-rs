@@ -21,7 +21,7 @@ macro_rules! plugin {
         #[no_mangle]
         pub unsafe extern fn hexchat_plugin_init(
             plugin_handle: *mut $crate::c::hexchat_plugin,
-            plugin_name: *mut *const ::std::os::raw:c_char,
+            plugin_name: *mut *const ::std::os::raw::c_char,
             plugin_desc: *mut *const ::std::os::raw::c_char,
             plugin_version: *mut *const ::std::os::raw::c_char,
             arg: *mut ::std::os::raw::c_char,
