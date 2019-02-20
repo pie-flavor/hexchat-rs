@@ -43,19 +43,6 @@ pub use crate::subplugin::*;
 #[doc(hidden)]
 pub mod call;
 
-// we don't actually need this, do we?
-//fn get_plugin<T>() -> Option<&'static Context> where T: Plugin {
-//    unimplemented!()
-//}
-//
-//fn register_plugin(plugin: impl Plugin, handle: *mut c::hexchat_plugin) -> Result<(), i32> {
-//    unimplemented!()
-//}
-//
-//fn deregister_plugin<T>() -> Result<(), i32> where T: Plugin {
-//    unimplemented!()
-//}
-
 fn to_cstring(str: &str) -> CString {
     CString::new(str).unwrap_or_else(|_| CString::new(str.replace('\0', "")).unwrap())
 }

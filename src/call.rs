@@ -44,9 +44,34 @@ macro_rules! plugin {
     };
 }
 
+use lazy_static::lazy_static;
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
 use std::os::raw::{c_char, c_int};
+use std::sync::Mutex;
 
-use crate::{c, to_cstring, Context, Plugin};
+use crate::{
+    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener,
+    WindowEventListener,
+};
+
+lazy_static! {
+    static ref PLUGINS: Mutex<HashMap<PhWrapper, PluginDef>> = Mutex::new(HashMap::new());
+    static ref TYPES: Mutex<HashMap<TypeId, PhWrapper>> = Mutex::new(HashMap::new());
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+struct PhWrapper(*mut c::hexchat_plugin);
+unsafe impl Send for PhWrapper {}
+
+struct PluginDef {
+    commands: Vec<Command>,
+    print_events: Vec<PrintEventListener>,
+    window_events: Vec<WindowEventListener>,
+    server_events: Vec<RawServerEventListener>,
+    instance: Box<dyn Any>,
+}
+unsafe impl Send for PluginDef {}
 
 pub unsafe fn hexchat_plugin_init<T>(
     plugin_handle: *mut c::hexchat_plugin,
@@ -56,7 +81,7 @@ pub unsafe fn hexchat_plugin_init<T>(
     _arg: *mut c_char,
 ) -> c_int
 where
-    T: Plugin,
+    T: Plugin + 'static,
 {
     let name = to_cstring(T::NAME);
     *plugin_name = name.into_raw();
@@ -64,23 +89,68 @@ where
     *plugin_desc = desc.into_raw();
     let version = to_cstring(T::VERSION);
     *plugin_version = version.into_raw();
-    //    match crate::register_plugin(T::new(&Context { handle: plugin_handle }), plugin_handle) {
-    //        Ok(_) => 1 as c_int,
-    //        Err(code) => code as c_int,
-    //    }
-    T::new(&Context {
+    let t = T::new(&Context {
         handle: plugin_handle,
     });
-    1
+    let type_id = t.type_id();
+    let plugin_def = PluginDef {
+        commands: Vec::new(),
+        print_events: Vec::new(),
+        window_events: Vec::new(),
+        server_events: Vec::new(),
+        instance: Box::new(t),
+    };
+    if let Ok(mut types) = TYPES.lock() {
+        types.insert(type_id, PhWrapper(plugin_handle));
+    } else {
+        return -2;
+    }
+    if let Ok(mut plugins) = PLUGINS.lock() {
+        plugins.insert(PhWrapper(plugin_handle), plugin_def);
+        1
+    } else {
+        -1
+    }
 }
 
-pub unsafe fn hexchat_plugin_deinit<T>(_plugin_handle: *mut c::hexchat_plugin) -> c_int
+pub unsafe fn hexchat_plugin_deinit<T>(plugin_handle: *mut c::hexchat_plugin) -> c_int
 where
     T: Plugin,
 {
-    //    match crate::deregister_plugin::<T>() {
-    //        Ok(_) => 1 as c_int,
-    //        Err(code) => code as c_int,
-    //    }
-    1
+    let context = Context {
+        handle: plugin_handle,
+    };
+    if let Ok(mut plugins) = PLUGINS.lock() {
+        if let Some(plugin_def) = plugins.remove(&PhWrapper(plugin_handle)) {
+            let PluginDef {
+                instance,
+                server_events,
+                window_events,
+                print_events,
+                commands,
+            } = plugin_def;
+            for event in server_events {
+                context.remove_raw_server_event_listener(event);
+            }
+            for event in window_events {
+                context.remove_window_event_listener(event);
+            }
+            for event in print_events {
+                context.remove_print_event_listener(event);
+            }
+            for command in commands {
+                context.deregister_command(command);
+            }
+            if let Ok(mut types) = TYPES.lock() {
+                types.remove(&instance.type_id());
+                1
+            } else {
+                -2
+            }
+        } else {
+            -3
+        }
+    } else {
+        -1
+    }
 }
