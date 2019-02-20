@@ -13,7 +13,6 @@ keywords = ["hexchat", "xchat", "irc", "chat", "plugin"]
 [dependencies]
 libc = "0.2.48"
 lazy_static = "1.2.0"
-failure = "0.1.5"
 charsets = "0.2.0"
 bitflags = "1.0.4"
 chrono = "0.4.6"
