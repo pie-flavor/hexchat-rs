@@ -6,19 +6,23 @@ use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int};
 use std::panic::{self, AssertUnwindSafe};
+use std::time::Duration;
 
 /// A handle to a registered command.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct Command(*mut c::hexchat_hook);
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct Command(pub(crate) *mut c::hexchat_hook);
 /// A handle to a registered print event listener.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct PrintEventListener(*mut c::hexchat_hook);
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct PrintEventListener(pub(crate) *mut c::hexchat_hook);
 /// A handle to a registered window event listener.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct WindowEventListener(*mut c::hexchat_hook);
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct WindowEventListener(pub(crate) *mut c::hexchat_hook);
 /// A handle to a registered raw server event listener.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct RawServerEventListener(*mut c::hexchat_hook);
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct RawServerEventListener(pub(crate) *mut c::hexchat_hook);
+/// A handle to a registered timer task.
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct TimerTask(pub(crate) *mut c::hexchat_hook);
 
 impl Context {
     /// Registers a new command accessible to the user via `/<COMMAND> [args]`. Returns a
@@ -67,7 +71,7 @@ impl Context {
     /// Deregisters a command registered by `register_command`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn deregister_command(&self, command: Command) {
-        self.dealloc_command(command);
+        self.dealloc_command(command.0);
         if let Ok(mut plugins) = call::PLUGINS.lock() {
             if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
                 plugin.commands.remove(&command);
@@ -75,9 +79,9 @@ impl Context {
         }
     }
 
-    pub(crate) fn dealloc_command(&self, command: Command) {
+    pub(crate) fn dealloc_command(&self, command: *mut c::hexchat_hook) {
         unsafe {
-            let ptr = c!(hexchat_unhook, self.handle, command.0);
+            let ptr = c!(hexchat_unhook, self.handle, command);
             let ptr = ptr as *mut CommandHookRef;
             Box::from_raw(ptr);
         }
@@ -126,7 +130,7 @@ impl Context {
     /// Removes a listener added by `add_print_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_print_event_listener(&self, listener: PrintEventListener) {
-        self.dealloc_print_event_listener(listener);
+        self.dealloc_print_event_listener(listener.0);
         if let Ok(mut plugins) = call::PLUGINS.lock() {
             if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
                 plugin.print_events.remove(&listener);
@@ -134,9 +138,9 @@ impl Context {
         }
     }
 
-    pub(crate) fn dealloc_print_event_listener(&self, listener: PrintEventListener) {
+    pub(crate) fn dealloc_print_event_listener(&self, listener: *mut c::hexchat_hook) {
         unsafe {
-            let ptr = c!(hexchat_unhook, self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener);
             let ptr = ptr as *mut PrintHookRef;
             Box::from_raw(ptr);
         }
@@ -184,7 +188,7 @@ impl Context {
     /// Removes a listener added by `add_window_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_window_event_listener(&self, listener: WindowEventListener) {
-        self.dealloc_window_event_listener(listener);
+        self.dealloc_window_event_listener(listener.0);
         if let Ok(mut plugins) = call::PLUGINS.lock() {
             if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
                 plugin.window_events.remove(&listener);
@@ -192,9 +196,9 @@ impl Context {
         }
     }
 
-    pub(crate) fn dealloc_window_event_listener(&self, listener: WindowEventListener) {
+    pub(crate) fn dealloc_window_event_listener(&self, listener: *mut c::hexchat_hook) {
         unsafe {
-            let ptr = c!(hexchat_unhook, self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener);
             let ptr = ptr as *mut ContextHookRef;
             Box::from_raw(ptr);
         }
@@ -247,7 +251,7 @@ impl Context {
     /// Removes a listener added by `add_raw_server_event_listener`.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_raw_server_event_listener(&self, listener: RawServerEventListener) {
-        self.dealloc_raw_server_event_listener(listener);
+        self.dealloc_raw_server_event_listener(listener.0);
         if let Ok(mut plugins) = call::PLUGINS.lock() {
             if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
                 plugin.server_events.remove(&listener);
@@ -255,10 +259,59 @@ impl Context {
         }
     }
 
-    pub(crate) fn dealloc_raw_server_event_listener(&self, listener: RawServerEventListener) {
+    pub(crate) fn dealloc_raw_server_event_listener(&self, listener: *mut c::hexchat_hook) {
         unsafe {
-            let ptr = c!(hexchat_unhook, self.handle, listener.0);
+            let ptr = c!(hexchat_unhook, self.handle, listener);
             let ptr = ptr as *mut ServerHookRef;
+            Box::from_raw(ptr);
+        }
+    }
+
+    /// Registers a task to be run repeatedly with a specified interval. Returns a corresponding
+    /// object suitable for passing to `remove_timer_task`.
+    ///
+    /// # Note
+    ///
+    /// Right now the interval cannot be more than `i32::max_value()` milliseconds. If it is more
+    /// than `i32::max_value()` milliseconds, it will be truncated to `i32::max_value()`
+    /// milliseconds. This restriction will be lifted in the future.
+    pub fn add_timer_task(&self, interval: Duration, task: impl Fn(&Self) + 'static) -> TimerTask {
+        let timer_ref = TimerHookRef {
+            function: Box::new(task),
+            ph: self.handle,
+        };
+        let boxed = Box::new(timer_ref);
+        let ptr = Box::into_raw(boxed);
+        let ms = interval.as_millis();
+        let ms = if ms > i32::max_value() as u128 {
+            i32::max_value()
+        } else {
+            ms as i32
+        }; //todo implement a way to handle u128-length timeouts
+        let hook_ptr = unsafe { c!(hexchat_hook_timer, self.handle, ms, timer_hook, ptr as _) };
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.timer_tasks.insert(TimerTask(hook_ptr));
+            }
+        }
+        TimerTask(hook_ptr)
+    }
+
+    /// Removes a timer task added by `add_timer_task`.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn remove_timer_task(&self, task: TimerTask) {
+        self.dealloc_timer_task(task.0);
+        if let Ok(mut plugins) = call::PLUGINS.lock() {
+            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
+                plugin.timer_tasks.remove(&task);
+            }
+        }
+    }
+
+    pub(crate) fn dealloc_timer_task(&self, task: *mut c::hexchat_hook) {
+        unsafe {
+            let ptr = c!(hexchat_unhook, self.handle, task);
+            let ptr = ptr as *mut TimerHookRef;
             Box::from_raw(ptr);
         }
     }
@@ -281,6 +334,11 @@ struct ContextHookRef {
 
 struct ServerHookRef {
     function: Box<dyn Fn(&Context, &[String], DateTime<Utc>) -> EatMode>,
+    ph: *mut c::hexchat_plugin,
+}
+
+struct TimerHookRef {
+    function: Box<dyn Fn(&Context)>,
     ph: *mut c::hexchat_plugin,
 }
 
@@ -387,6 +445,18 @@ unsafe extern "C" fn server_hook(
         ((*user_data).function)(&context, &vec, utc)
     }))
     .unwrap_or(EatMode::None) as _
+}
+
+unsafe extern "C" fn timer_hook(user_data: *mut c_void) -> c_int {
+    let user_data = user_data as *mut TimerHookRef;
+    let context = Context {
+        handle: (*user_data).ph,
+    };
+    panic::catch_unwind(AssertUnwindSafe(|| {
+        ((*user_data).function)(&context);
+    }))
+    .ok();
+    EatMode::All as _
 }
 
 /// The priority of an event listener or command.

@@ -70,7 +70,7 @@ pub struct hexchat_plugin {
         timeout: c_int,
         callback: unsafe extern "C" fn(user_data: *mut c_void) -> c_int,
         userdata: *mut c_void,
-    ) -> hexchat_hook,
+    ) -> *mut hexchat_hook,
 
     pub hexchat_hook_fd: unsafe extern "C" fn(
         ph: *mut hexchat_plugin,

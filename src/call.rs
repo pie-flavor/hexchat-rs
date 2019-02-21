@@ -52,7 +52,7 @@ use std::panic;
 use std::sync::Mutex;
 
 use crate::{
-    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener,
+    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener, TimerTask,
     WindowEventListener,
 };
 
@@ -71,6 +71,7 @@ pub(crate) struct PluginDef {
     pub(crate) print_events: HashSet<PrintEventListener>,
     pub(crate) window_events: HashSet<WindowEventListener>,
     pub(crate) server_events: HashSet<RawServerEventListener>,
+    pub(crate) timer_tasks: HashSet<TimerTask>,
     pub(crate) instance: Box<dyn Any>,
 }
 unsafe impl Send for PluginDef {}
@@ -125,6 +126,7 @@ where
         print_events: HashSet::new(),
         window_events: HashSet::new(),
         server_events: HashSet::new(),
+        timer_tasks: HashSet::new(),
         instance: Box::new(t),
     };
     if let Ok(mut types) = TYPES.lock() {
@@ -155,18 +157,22 @@ where
                 window_events,
                 print_events,
                 commands,
+                timer_tasks,
             } = plugin_def;
             for event in server_events {
-                context.dealloc_raw_server_event_listener(event);
+                context.dealloc_raw_server_event_listener(event.0);
             }
             for event in window_events {
-                context.dealloc_window_event_listener(event);
+                context.dealloc_window_event_listener(event.0);
             }
             for event in print_events {
-                context.dealloc_print_event_listener(event);
+                context.dealloc_print_event_listener(event.0);
             }
             for command in commands {
-                context.dealloc_command(command);
+                context.dealloc_command(command.0);
+            }
+            for timer_task in timer_tasks {
+                context.dealloc_timer_task(timer_task.0);
             }
             if let Ok(mut types) = TYPES.lock() {
                 types.remove(&instance.type_id());
