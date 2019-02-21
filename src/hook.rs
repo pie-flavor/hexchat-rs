@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity)] // todo fix when intellij-rust supports trait typedefs
 
-use crate::call::{self, PhWrapper};
+use crate::call;
 use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, WindowEvent};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
@@ -60,10 +60,8 @@ impl Context {
                 ptr as _,
             )
         };
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.commands.insert(Command(hook_ptr));
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.commands.insert(Command(hook_ptr));
         }
         Command(hook_ptr)
     }
@@ -72,10 +70,8 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn deregister_command(&self, command: Command) {
         self.dealloc_command(command.0);
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.commands.remove(&command);
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.commands.remove(&command);
         }
     }
 
@@ -119,10 +115,8 @@ impl Context {
                 ptr as _,
             )
         };
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.print_events.insert(PrintEventListener(hook_ptr));
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.print_events.insert(PrintEventListener(hook_ptr));
         }
         PrintEventListener(hook_ptr)
     }
@@ -131,10 +125,8 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_print_event_listener(&self, listener: PrintEventListener) {
         self.dealloc_print_event_listener(listener.0);
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.print_events.remove(&listener);
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.print_events.remove(&listener);
         }
     }
 
@@ -177,10 +169,8 @@ impl Context {
                 ptr as _,
             )
         };
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.window_events.insert(WindowEventListener(hook_ptr));
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.window_events.insert(WindowEventListener(hook_ptr));
         }
         WindowEventListener(hook_ptr)
     }
@@ -189,10 +179,8 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_window_event_listener(&self, listener: WindowEventListener) {
         self.dealloc_window_event_listener(listener.0);
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.window_events.remove(&listener);
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.window_events.remove(&listener);
         }
     }
 
@@ -238,12 +226,10 @@ impl Context {
                 ptr as _,
             )
         };
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin
-                    .server_events
-                    .insert(RawServerEventListener(hook_ptr));
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin
+                .server_events
+                .insert(RawServerEventListener(hook_ptr));
         }
         RawServerEventListener(hook_ptr)
     }
@@ -252,10 +238,8 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_raw_server_event_listener(&self, listener: RawServerEventListener) {
         self.dealloc_raw_server_event_listener(listener.0);
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.server_events.remove(&listener);
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.server_events.remove(&listener);
         }
     }
 
@@ -289,10 +273,8 @@ impl Context {
             ms as i32
         }; //todo implement a way to handle u128-length timeouts
         let hook_ptr = unsafe { c!(hexchat_hook_timer, self.handle, ms, timer_hook, ptr as _) };
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.timer_tasks.insert(TimerTask(hook_ptr));
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.timer_tasks.insert(TimerTask(hook_ptr));
         }
         TimerTask(hook_ptr)
     }
@@ -301,10 +283,8 @@ impl Context {
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_timer_task(&self, task: TimerTask) {
         self.dealloc_timer_task(task.0);
-        if let Ok(mut plugins) = call::PLUGINS.lock() {
-            if let Some(plugin) = plugins.get_mut(&PhWrapper(self.handle)) {
-                plugin.timer_tasks.remove(&task);
-            }
+        if let Ok(mut plugin) = call::get_plugin().lock() {
+            plugin.timer_tasks.remove(&task);
         }
     }
 

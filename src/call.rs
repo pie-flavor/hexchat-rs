@@ -44,9 +44,9 @@ macro_rules! plugin {
     };
 }
 
-use lazy_static::lazy_static;
+use once_cell::sync::OnceCell;
 use std::any::{Any, TypeId};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::os::raw::{c_char, c_int};
 use std::panic;
 use std::sync::Mutex;
@@ -56,23 +56,26 @@ use crate::{
     WindowEventListener,
 };
 
-lazy_static! {
-    pub(crate) static ref PLUGINS: Mutex<HashMap<PhWrapper, PluginDef>> =
-        Mutex::new(HashMap::new());
-    pub(crate) static ref TYPES: Mutex<HashMap<TypeId, PhWrapper>> = Mutex::new(HashMap::new());
+static mut PLUGIN: OnceCell<Mutex<PluginDef>> = OnceCell::INIT;
+
+pub(crate) fn get_plugin() -> &'static Mutex<PluginDef> {
+    unsafe { PLUGIN.get().unwrap() }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct PhWrapper(pub(crate) *mut c::hexchat_plugin);
-unsafe impl Send for PhWrapper {}
+#[allow(dead_code)]
+pub(crate) fn is_loaded() -> bool {
+    unsafe { PLUGIN.get().is_none() }
+}
 
 pub(crate) struct PluginDef {
+    pub(crate) _type_id: TypeId,
+    pub(crate) _ph: *mut c::hexchat_plugin,
     pub(crate) commands: HashSet<Command>,
     pub(crate) print_events: HashSet<PrintEventListener>,
     pub(crate) window_events: HashSet<WindowEventListener>,
     pub(crate) server_events: HashSet<RawServerEventListener>,
     pub(crate) timer_tasks: HashSet<TimerTask>,
-    pub(crate) instance: Box<dyn Any>,
+    pub(crate) _instance: Box<dyn Any>,
 }
 unsafe impl Send for PluginDef {}
 
@@ -127,19 +130,12 @@ where
         window_events: HashSet::new(),
         server_events: HashSet::new(),
         timer_tasks: HashSet::new(),
-        instance: Box::new(t),
+        _instance: Box::new(t),
+        _type_id: type_id,
+        _ph: plugin_handle,
     };
-    if let Ok(mut types) = TYPES.lock() {
-        types.insert(type_id, PhWrapper(plugin_handle));
-    } else {
-        return -2;
-    }
-    if let Ok(mut plugins) = PLUGINS.lock() {
-        plugins.insert(PhWrapper(plugin_handle), plugin_def);
-        1
-    } else {
-        -1
-    }
+    PLUGIN.set(Mutex::new(plugin_def)).ok();
+    1
 }
 
 pub unsafe fn hexchat_plugin_deinit<T>(plugin_handle: *mut c::hexchat_plugin) -> c_int
@@ -149,40 +145,24 @@ where
     let context = Context {
         handle: plugin_handle,
     };
-    if let Ok(mut plugins) = PLUGINS.lock() {
-        if let Some(plugin_def) = plugins.remove(&PhWrapper(plugin_handle)) {
-            let PluginDef {
-                instance,
-                server_events,
-                window_events,
-                print_events,
-                commands,
-                timer_tasks,
-            } = plugin_def;
-            for event in server_events {
-                context.dealloc_raw_server_event_listener(event.0);
-            }
-            for event in window_events {
-                context.dealloc_window_event_listener(event.0);
-            }
-            for event in print_events {
-                context.dealloc_print_event_listener(event.0);
-            }
-            for command in commands {
-                context.dealloc_command(command.0);
-            }
-            for timer_task in timer_tasks {
-                context.dealloc_timer_task(timer_task.0);
-            }
-            if let Ok(mut types) = TYPES.lock() {
-                types.remove(&instance.type_id());
-                1
-            } else {
-                -2
-            }
-        } else {
-            -3
+    if let Ok(plugin) = get_plugin().lock() {
+        for event in &plugin.server_events {
+            context.dealloc_raw_server_event_listener(event.0);
         }
+        for event in &plugin.window_events {
+            context.dealloc_window_event_listener(event.0);
+        }
+        for event in &plugin.print_events {
+            context.dealloc_print_event_listener(event.0);
+        }
+        for command in &plugin.commands {
+            context.dealloc_command(command.0);
+        }
+        for timer_task in &plugin.timer_tasks {
+            context.dealloc_timer_task(timer_task.0);
+        }
+        PLUGIN = OnceCell::INIT;
+        1
     } else {
         -1
     }

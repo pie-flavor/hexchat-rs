@@ -1,6 +1,5 @@
 use crate::{c, from_cstring, to_cstring, Context};
-use lazy_static::lazy_static;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 
@@ -33,11 +32,12 @@ impl Context {
     pub fn get_cursor_pos(&self) -> Option<usize> {
         let mut res_int = 0;
         let mut res_str = ptr::null();
+        let cursor_pos = to_cstring(CURSOR_POS);
         let res = unsafe {
             c!(
                 hexchat_get_prefs,
                 self.handle,
-                CURSOR_POS.as_ptr(),
+                cursor_pos.as_ptr(),
                 &mut res_str,
                 &mut res_int
             )
@@ -51,11 +51,12 @@ impl Context {
     pub fn get_server_id(&self) -> Option<i32> {
         let mut res_int = 0;
         let mut res_str = ptr::null();
+        let server_id = to_cstring(SERVER_ID);
         let res = unsafe {
             c!(
                 hexchat_get_prefs,
                 self.handle,
-                SERVER_ID.as_ptr(),
+                server_id.as_ptr(),
                 &mut res_str,
                 &mut res_int
             )
@@ -158,10 +159,8 @@ impl Context {
     }
 }
 
-lazy_static! {
-    static ref CURSOR_POS: CString = to_cstring("state_cursor");
-    static ref SERVER_ID: CString = to_cstring("id");
-}
+const CURSOR_POS: &str = "state_cursor";
+const SERVER_ID: &str = "id";
 
 /// Possible values from `Context::get_global_pref`.
 pub enum GlobalPreferenceValue {

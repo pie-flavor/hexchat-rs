@@ -1,29 +1,32 @@
 use crate::other::PrintEvent;
 use crate::{c, from_cstring, from_cstring_opt, to_cstring, Context};
 use charsets::Charset;
-use lazy_static::lazy_static;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 impl Context {
     /// Gets the client's currently set away reason, or `None` if the client is not away.
     pub fn get_away_reason(&self) -> Option<String> {
-        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, AWAY.as_ptr())) }
+        let away = to_cstring(AWAY);
+        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, away.as_ptr())) }
     }
     /// Gets whether or not the client is currently away.
     pub fn is_away(&self) -> bool {
-        unsafe { c!(hexchat_get_info, self.handle, AWAY.as_ptr()).is_null() }
+        let away = to_cstring(AWAY);
+        unsafe { c!(hexchat_get_info, self.handle, away.as_ptr()).is_null() }
     }
     /// Gets the name of the current channel.
     pub fn get_channel_name(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, CHANNEL.as_ptr())) }
+        let channel = to_cstring(CHANNEL);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, channel.as_ptr())) }
     }
     /// Gets the current charset in use.
     pub fn get_charset(&self) -> Charset {
+        let charset = to_cstring(CHARSET);
         unsafe {
             Charset::from_str(
-                &CStr::from_ptr(c!(hexchat_get_info, self.handle, CHARSET.as_ptr()))
+                &CStr::from_ptr(c!(hexchat_get_info, self.handle, charset.as_ptr()))
                     .to_string_lossy(),
             )
             .unwrap()
@@ -31,9 +34,10 @@ impl Context {
     }
     /// Gets HexChat's configuration directory.
     pub fn get_config_dir(&self) -> PathBuf {
+        let config_dir = to_cstring(CONFIG_DIR);
         unsafe {
             PathBuf::from(
-                &*CStr::from_ptr(c!(hexchat_get_info, self.handle, CONFIG_DIR.as_ptr()))
+                &*CStr::from_ptr(c!(hexchat_get_info, self.handle, config_dir.as_ptr()))
                     .to_string_lossy(),
             )
         }
@@ -52,48 +56,58 @@ impl Context {
     }
     /// Gets the client's current hostname.
     pub fn get_hostname(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, HOST.as_ptr())) }
+        let host = to_cstring(HOST);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, host.as_ptr())) }
     }
     /// Gets the current contents of the input box.
     pub fn get_inputbox_contents(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, INPUT_BOX.as_ptr())) }
+        let input_box = to_cstring(INPUT_BOX);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, input_box.as_ptr())) }
     }
     /// Gets HexChat's library directory, also known as the plugin directory.
     pub fn get_hexchat_library_dir(&self) -> PathBuf {
+        let lib_dir_fs = to_cstring(LIB_DIR_FS);
         unsafe {
             PathBuf::from(
-                &*CStr::from_ptr(c!(hexchat_get_info, self.handle, LIB_DIR_FS.as_ptr()))
+                &*CStr::from_ptr(c!(hexchat_get_info, self.handle, lib_dir_fs.as_ptr()))
                     .to_string_lossy(),
             )
         }
     }
     /// Gets the channel mode string for the current channel, or `None` if unknown.
     pub fn get_channel_mode_string(&self) -> Option<String> {
-        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, MODES.as_ptr())) }
+        let modes = to_cstring(MODES);
+        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, modes.as_ptr())) }
     }
     /// Gets the name of the current server network, or `None` if unknown.
     pub fn get_network_name(&self) -> Option<String> {
-        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, NETWORK.as_ptr())) }
+        let network = to_cstring(NETWORK);
+        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, network.as_ptr())) }
     }
     /// Gets the nickname in use on the current server.
     pub fn get_nickname(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, NICK.as_ptr())) }
+        let nick = to_cstring(NICK);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, nick.as_ptr())) }
     }
     /// Gets the NickServ password for the current server, or `None` if none is set.
     pub fn get_nickserv_password(&self) -> Option<String> {
-        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, NICKSERV.as_ptr())) }
+        let nickserv = to_cstring(NICKSERV);
+        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, nickserv.as_ptr())) }
     }
     /// Gets the name of the current server, or `None` if unknown.
     pub fn get_server_name(&self) -> Option<String> {
-        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, SERVER.as_ptr())) }
+        let server = to_cstring(SERVER);
+        unsafe { from_cstring_opt(c!(hexchat_get_info, self.handle, server.as_ptr())) }
     }
     /// Gets the topic of the current channel.
     pub fn get_channel_topic(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, TOPIC.as_ptr())) }
+        let topic = to_cstring(TOPIC);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, topic.as_ptr())) }
     }
     /// Gets the version string of the build of Hexchat you're running on.
     pub fn get_hexchat_version(&self) -> String {
-        unsafe { from_cstring(c!(hexchat_get_info, self.handle, VERSION.as_ptr())) }
+        let version = to_cstring(VERSION);
+        unsafe { from_cstring(c!(hexchat_get_info, self.handle, version.as_ptr())) }
     }
 }
 
@@ -102,19 +116,22 @@ impl Context {
     /// Gets the GTK window.
     pub fn get_window(&self) -> gtk::Window {
         use std::marker::PhantomData;
+        let gtk_win_ptr = to_cstring(GTK_WIN_PTR);
         unsafe {
-            let ptr = c!(hexchat_get_info, self.handle, GTK_WIN_PTR.as_ptr());
+            let ptr = c!(hexchat_get_info, self.handle, gtk_win_ptr.as_ptr());
             let ptr = ptr as *const gtk_sys::GtkWindow;
             gtk::Window(glib::translate::from_glib_borrow(ptr), PhantomData)
         }
     }
     /// Gets the raw `GtkWindow` pointer.
     pub unsafe fn get_window_handle(&self) -> *const gtk_sys::GtkWindow {
-        c!(hexchat_get_info, self.handle, GTK_WIN_PTR.as_ptr()) as *const gtk_sys::GtkWindow
+        let gtk_win_ptr = to_cstring(GTK_WIN_PTR);
+        c!(hexchat_get_info, self.handle, gtk_win_ptr.as_ptr()) as *const gtk_sys::GtkWindow
     }
     /// Gets the status of the window.
     pub fn get_window_status(&self) -> WindowStatus {
-        let cow = unsafe { CStr::from_ptr(c!(hexchat_get_info, self.handle, WIN_STATUS.as_ptr())) }
+        let win_status = to_cstring(WIN_STATUS);
+        let cow = unsafe { CStr::from_ptr(c!(hexchat_get_info, self.handle, win_status.as_ptr())) }
             .to_string_lossy();
         match &*cow {
             "active" => WindowStatus::Active,
@@ -125,7 +142,8 @@ impl Context {
     /// Gets the raw `HWND` pointer.
     #[cfg(windows)]
     pub unsafe fn get_os_window_handle(&self) -> winapi::shared::windef::HWND {
-        c!(hexchat_get_info, self.handle, WIN_PTR.as_ptr()) as winapi::shared::windef::HWND
+        let win_ptr = to_cstring(WIN_PTR);
+        c!(hexchat_get_info, self.handle, win_ptr.as_ptr()) as winapi::shared::windef::HWND
     }
     /// Gets the raw `GtkWindow` pointer.
     #[cfg(not(windows))]
@@ -151,26 +169,23 @@ pub enum WindowStatus {
     Normal,
 }
 
-lazy_static! {
-    static ref AWAY: CString = CString::new("away").unwrap();
-    static ref CHANNEL: CString = CString::new("channel").unwrap();
-    static ref CHARSET: CString = CString::new("charset").unwrap();
-    static ref CONFIG_DIR: CString = CString::new("configdir").unwrap();
-    static ref HOST: CString = CString::new("host").unwrap();
-    static ref INPUT_BOX: CString = CString::new("inputbox").unwrap();
-    static ref LIB_DIR_FS: CString = CString::new("libdirfs").unwrap();
-    static ref MODES: CString = CString::new("modes").unwrap();
-    static ref NETWORK: CString = CString::new("network").unwrap();
-    static ref NICK: CString = CString::new("nick").unwrap();
-    static ref NICKSERV: CString = CString::new("nickserv").unwrap();
-    static ref SERVER: CString = CString::new("server").unwrap();
-    static ref TOPIC: CString = CString::new("topic").unwrap();
-    static ref VERSION: CString = CString::new("version").unwrap();
-}
-
+const AWAY: &str = "away";
+const CHANNEL: &str = "channel";
+const CHARSET: &str = "charset";
+const CONFIG_DIR: &str = "configdir";
+const HOST: &str = "host";
+const INPUT_BOX: &str = "inputbox";
+const LIB_DIR_FS: &str = "libdirfs";
+const MODES: &str = "modes";
+const NETWORK: &str = "network";
+const NICK: &str = "nick";
+const NICKSERV: &str = "nickserv";
+const SERVER: &str = "server";
+const TOPIC: &str = "topic";
+const VERSION: &str = "version";
 #[cfg(feature = "window")]
-lazy_static! {
-    static ref WIN_PTR: CString = CString::new("win_ptr").unwrap();
-    static ref WIN_STATUS: CString = CString::new("win_status").unwrap();
-    static ref GTK_WIN_PTR: CString = CString::new("gtkwin_ptr").unwrap();
-}
+const WIN_PTR: &str = "win_ptr";
+#[cfg(feature = "window")]
+const WIN_STATUS: &str = "win_status";
+#[cfg(feature = "window")]
+const GTK_WIN_PTR: &str = "gtkwin_ptr";
