@@ -52,6 +52,7 @@ mod chan;
 pub use crate::chan::*;
 mod subplugin;
 pub use crate::subplugin::*;
+#[macro_use]
 mod safe_static;
 pub use crate::safe_static::*;
 

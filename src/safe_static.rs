@@ -11,14 +11,14 @@ macro_rules! __safe_static_internal {
         __safe_static_internal!(@LAZY TY, $(#[$attr])*, ($($vis)*), $N, $T, $e);
         safe_static!($($t)*);
     };
-    ($(#[$attr:meta])* ($($vis:tt)*) static uninit $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        __safe_static_internal!(@UNINIT TY, $(#[$attr])*, ($($vis)*), $N, $T, $e);
+    ($(#[$attr:meta])* ($($vis:tt)*) static uninit $N:ident : $T:ty; $($t:tt)*) => {
+        __safe_static_internal!(@UNINIT TY, $(#[$attr])*, ($($vis)*), $N, $T);
     };
     (@LAZY TY, $(#[$attr:meta])*, ($($vis:tt)*), $N:ident, $T:ty, $e:expr) => {
         $(#[$attr])*
         $($vis)* static $N: $crate::SafeLazy<$T> = $crate::SafeLazy { instance: unsafe { $crate::SafeLazyInstance::new() }, init_fn: || { $e } };
     };
-    (@UNINIT TY, $(#[$attr:meta])*, ($($vis:tt)*), $N:ident, $T:ty, $e:expr) => {
+    (@UNINIT TY, $(#[$attr:meta])*, ($($vis:tt)*), $N:ident, $T:ty) => {
         $(#[$attr])*
         $($vis)* static $N: $crate::SafeUninit<$T> = unsafe { $crate::SafeUninit::new() };
     };
@@ -39,18 +39,18 @@ macro_rules! safe_static {
     ($(#[$attr:meta])* pub static lazy $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
         __safe_static_internal!($(#[$attr])* (pub) static lazy $N : $T = $e; $($t)*);
     };
-    ($(#[$attr:meta])* pub lazy ($($vis:tt)+) static $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+    ($(#[$attr:meta])* pub ($($vis:tt)+) static lazy $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
         __safe_static_internal!($(#[$attr])* (pub ($($vis)+)) static lazy $N : $T = $e; $($t)*);
     };
-    ($(#[$attr:meta])* static uninit $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
+    ($(#[$attr:meta])* static uninit $N:ident : $T:ty; $($t:tt)*) => {
         // use `()` to explicitly forward the information about private items
-        __safe_static_internal!($(#[$attr])* () static uninit $N : $T = $e; $($t)*);
+        __safe_static_internal!($(#[$attr])* () static uninit $N : $T; $($t)*);
     };
-    ($(#[$attr:meta])* pub static uninit $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        __safe_static_internal!($(#[$attr])* (pub) static uninit $N : $T = $e; $($t)*);
+    ($(#[$attr:meta])* pub static uninit $N:ident : $T:ty; $($t:tt)*) => {
+        __safe_static_internal!($(#[$attr])* (pub) static uninit $N : $T; $($t)*);
     };
-    ($(#[$attr:meta])* pub uninit ($($vis:tt)+) static $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        __safe_static_internal!($(#[$attr])* (pub ($($vis)+)) static uninit $N : $T = $e; $($t)*);
+    ($(#[$attr:meta])* pub ($($vis:tt)+) static uninit $N:ident : $T:ty; $($t:tt)*) => {
+        __safe_static_internal!($(#[$attr])* (pub ($($vis)+)) static uninit $N : $T; $($t)*);
     };
     () => ()
 }
@@ -174,6 +174,8 @@ impl<T> Deref for SafeUninit<T> {
         unsafe { (&*self.instance.get()) }.as_ref().unwrap()
     }
 }
+
+unsafe impl<T> Sync for SafeUninit<T> where T: Send + Sync {}
 
 pub(crate) static ALLOCATED: RwLock<Option<Vec<Deallocator>>> = RwLock::new(None);
 pub(crate) struct Deallocator(pub(crate) Box<dyn FnBox()>);
