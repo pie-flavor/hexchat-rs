@@ -45,7 +45,7 @@ macro_rules! plugin {
 }
 
 use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::collections::HashSet;
 use std::mem;
 use std::os::raw::{c_char, c_int};
@@ -57,6 +57,7 @@ use crate::{
 };
 
 static PLUGIN: RwLock<Option<PluginDef>> = RwLock::new(None);
+static PLUGIN_INSTANCE: RwLock<Option<PluginInstance>> = RwLock::new(None);
 unsafe impl Sync for PluginDef {}
 unsafe impl Send for PluginDef {}
 
@@ -64,20 +65,22 @@ pub(crate) fn get_plugin() -> MappedRwLockWriteGuard<'static, PluginDef> {
     RwLockWriteGuard::map(PLUGIN.write(), |o| o.as_mut().unwrap())
 }
 
+struct PluginInstance(Box<dyn Any>);
+unsafe impl Send for PluginInstance {}
+unsafe impl Sync for PluginInstance {}
+
 #[allow(dead_code)]
 pub(crate) fn is_loaded() -> bool {
     PLUGIN.read().is_some()
 }
 
 pub(crate) struct PluginDef {
-    pub(crate) _type_id: TypeId,
     pub(crate) _ph: *mut c::hexchat_plugin,
     pub(crate) commands: HashSet<Command>,
     pub(crate) print_events: HashSet<PrintEventListener>,
     pub(crate) window_events: HashSet<WindowEventListener>,
     pub(crate) server_events: HashSet<RawServerEventListener>,
     pub(crate) timer_tasks: HashSet<TimerTask>,
-    pub(crate) instance: Box<dyn Any>,
 }
 
 pub unsafe fn hexchat_plugin_init<T>(
@@ -92,6 +95,15 @@ where
 {
     {
         *ALLOCATED.write() = Some(Vec::new());
+        let plugin_def = PluginDef {
+            commands: HashSet::new(),
+            print_events: HashSet::new(),
+            window_events: HashSet::new(),
+            server_events: HashSet::new(),
+            timer_tasks: HashSet::new(),
+            _ph: plugin_handle,
+        };
+        *PLUGIN.write() = Some(plugin_def);
     }
     let name = to_cstring(T::NAME);
     *plugin_name = name.into_raw();
@@ -112,14 +124,21 @@ where
             }
             .send_command(&if let Some(string) = (*e).downcast_ref::<&str>() {
                 format!(
-                    "GUI MSGBOX Plugin '{} {}' failed to load. Panic message: {}",
+                    r#"GUI MSGBOX "Plugin '{} {}' failed to load. Panic message: {}""#,
+                    T::NAME,
+                    T::VERSION,
+                    string
+                )
+            } else if let Some(string) = (*e).downcast_ref::<String>() {
+                format!(
+                    r#"GUI MSGBOX "Plugin '{} {}' failed to load. Panic message: {}""#,
                     T::NAME,
                     T::VERSION,
                     string
                 )
             } else {
                 format!(
-                    "GUI MSGBOX Plugin '{} {}' failed to load.",
+                    r#"GUI MSGBOX "Plugin '{} {}' failed to load.""#,
                     T::NAME,
                     T::VERSION
                 )
@@ -127,18 +146,7 @@ where
             return -4;
         }
     };
-    let type_id = t.type_id();
-    let plugin_def = PluginDef {
-        commands: HashSet::new(),
-        print_events: HashSet::new(),
-        window_events: HashSet::new(),
-        server_events: HashSet::new(),
-        timer_tasks: HashSet::new(),
-        instance: Box::new(t),
-        _type_id: type_id,
-        _ph: plugin_handle,
-    };
-    *PLUGIN.write() = Some(plugin_def);
+    *PLUGIN_INSTANCE.write() = Some(PluginInstance(Box::new(t)));
     1
 }
 
@@ -150,18 +158,21 @@ where
         handle: plugin_handle,
     };
     let mut plugin = None;
+    let mut instance = None;
     let mut write = PLUGIN.write();
+    let mut plugin_write = PLUGIN_INSTANCE.write();
     mem::swap(&mut plugin, &mut *write);
-    let plugin = plugin.unwrap();
+    mem::swap(&mut instance, &mut *plugin_write);
+    let plugin = match plugin { Some(p) => p, None => return 1 };
     let PluginDef {
         server_events,
         window_events,
         print_events,
         commands,
         timer_tasks,
-        instance,
         ..
     } = plugin;
+    let instance = match instance { Some(i) => i, None => return -2 };
     mem::drop(instance);
     for event in server_events {
         context.dealloc_raw_server_event_listener(event.0);
