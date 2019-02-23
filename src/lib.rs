@@ -9,6 +9,12 @@
 //! of for you by the `plugin!` macro.
 //!
 //! If window manipulation is desired, the `window` feature should be enabled.
+//!
+//! Static variables holding heap resources are discouraged and will cause memory leaks. This crate
+//! provides a `safe_static!` macro for this purpose. Please note that any thread that accesses a
+//! safe static must be killed in your plugin's `Drop` implementation, and it's undefined not to.
+//! You should kill them anyway even if you don't use this, because they'll be a memory leak too
+//! otherwise.
 
 #![deny(missing_docs, clippy::pedantic)]
 #![allow(
@@ -16,7 +22,13 @@
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap
 )]
-#![feature(slice_patterns, trait_alias, type_alias_enum_variants, never_type)]
+#![feature(
+    slice_patterns,
+    trait_alias,
+    type_alias_enum_variants,
+    never_type,
+    fnbox
+)]
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -40,6 +52,8 @@ mod chan;
 pub use crate::chan::*;
 mod subplugin;
 pub use crate::subplugin::*;
+mod safe_static;
+pub use crate::safe_static::*;
 
 #[macro_use]
 #[doc(hidden)]

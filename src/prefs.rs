@@ -155,7 +155,7 @@ impl Context {
             );
         }
         let list = unsafe { CStr::from_ptr(&buf as *const [c_char] as _).to_string_lossy() };
-        list.split(',').map(|x| x.to_string()).collect()
+        list.split(',').map(ToString::to_string).collect()
     }
 }
 

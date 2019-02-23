@@ -44,27 +44,29 @@ macro_rules! plugin {
     };
 }
 
-use once_cell::sync::OnceCell;
+use parking_lot::{MappedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
+use std::mem;
 use std::os::raw::{c_char, c_int};
 use std::panic;
-use std::sync::Mutex;
 
 use crate::{
     c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener, TimerTask,
-    WindowEventListener,
+    WindowEventListener, ALLOCATED,
 };
 
-static mut PLUGIN: OnceCell<Mutex<PluginDef>> = OnceCell::INIT;
+static PLUGIN: RwLock<Option<PluginDef>> = RwLock::new(None);
+unsafe impl Sync for PluginDef {}
+unsafe impl Send for PluginDef {}
 
-pub(crate) fn get_plugin() -> &'static Mutex<PluginDef> {
-    unsafe { PLUGIN.get().unwrap() }
+pub(crate) fn get_plugin() -> MappedRwLockWriteGuard<'static, PluginDef> {
+    RwLockWriteGuard::map(PLUGIN.write(), |o| o.as_mut().unwrap())
 }
 
 #[allow(dead_code)]
 pub(crate) fn is_loaded() -> bool {
-    unsafe { PLUGIN.get().is_none() }
+    PLUGIN.read().is_some()
 }
 
 pub(crate) struct PluginDef {
@@ -75,9 +77,8 @@ pub(crate) struct PluginDef {
     pub(crate) window_events: HashSet<WindowEventListener>,
     pub(crate) server_events: HashSet<RawServerEventListener>,
     pub(crate) timer_tasks: HashSet<TimerTask>,
-    pub(crate) _instance: Box<dyn Any>,
+    pub(crate) instance: Box<dyn Any>,
 }
-unsafe impl Send for PluginDef {}
 
 pub unsafe fn hexchat_plugin_init<T>(
     plugin_handle: *mut c::hexchat_plugin,
@@ -89,6 +90,9 @@ pub unsafe fn hexchat_plugin_init<T>(
 where
     T: Plugin + 'static,
 {
+    {
+        *ALLOCATED.write() = Some(Vec::new());
+    }
     let name = to_cstring(T::NAME);
     *plugin_name = name.into_raw();
     let desc = to_cstring(T::DESC);
@@ -130,11 +134,11 @@ where
         window_events: HashSet::new(),
         server_events: HashSet::new(),
         timer_tasks: HashSet::new(),
-        _instance: Box::new(t),
+        instance: Box::new(t),
         _type_id: type_id,
         _ph: plugin_handle,
     };
-    PLUGIN.set(Mutex::new(plugin_def)).ok();
+    *PLUGIN.write() = Some(plugin_def);
     1
 }
 
@@ -145,25 +149,45 @@ where
     let context = Context {
         handle: plugin_handle,
     };
-    if let Ok(plugin) = get_plugin().lock() {
-        for event in &plugin.server_events {
-            context.dealloc_raw_server_event_listener(event.0);
-        }
-        for event in &plugin.window_events {
-            context.dealloc_window_event_listener(event.0);
-        }
-        for event in &plugin.print_events {
-            context.dealloc_print_event_listener(event.0);
-        }
-        for command in &plugin.commands {
-            context.dealloc_command(command.0);
-        }
-        for timer_task in &plugin.timer_tasks {
-            context.dealloc_timer_task(timer_task.0);
-        }
-        PLUGIN = OnceCell::INIT;
-        1
-    } else {
-        -1
+    let mut plugin = None;
+    let mut write = PLUGIN.write();
+    mem::swap(&mut plugin, &mut *write);
+    let plugin = plugin.unwrap();
+    let PluginDef {
+        server_events,
+        window_events,
+        print_events,
+        commands,
+        timer_tasks,
+        instance,
+        ..
+    } = plugin;
+    mem::drop(instance);
+    for event in server_events {
+        context.dealloc_raw_server_event_listener(event.0);
     }
+    for event in window_events {
+        context.dealloc_window_event_listener(event.0);
+    }
+    for event in print_events {
+        context.dealloc_print_event_listener(event.0);
+    }
+    for command in commands {
+        context.dealloc_command(command.0);
+    }
+    for timer_task in timer_tasks {
+        context.dealloc_timer_task(timer_task.0);
+    }
+    let mut vec = None;
+    let mut lock = ALLOCATED.write();
+    mem::swap(&mut vec, &mut *lock);
+    if let Some(vec) = vec {
+        for func in vec {
+            let boxed = func.0;
+            boxed();
+        }
+    } else {
+        return -5;
+    }
+    1
 }

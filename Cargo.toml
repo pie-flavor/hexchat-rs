@@ -12,10 +12,10 @@ keywords = ["hexchat", "xchat", "irc", "chat", "plugin"]
 
 [dependencies]
 libc = "0.2.48"
-once_cell = "0.1.8"
 charsets = "0.2.0"
 bitflags = "1.0.4"
 chrono = "0.4.6"
+parking_lot = { version = "0.7.1", features = ["nightly"] }
 gtk = { version = "0.5.0", optional = true }
 glib = { version = "0.6.1", optional = true }
 gtk-sys = { version = "0.7.0", optional = true }
