@@ -315,7 +315,7 @@ impl Context {
                 self.handle,
                 event.as_ptr(),
                 c_int::from(priority.0),
-                server_event_hook::<T>,
+                server_event_hook,
                 ptr as _,
             )
         };
@@ -488,15 +488,12 @@ unsafe extern "C" fn timer_hook(user_data: *mut c_void) -> c_int {
     EatMode::All as _
 }
 
-unsafe extern "C" fn server_event_hook<T>(
+unsafe extern "C" fn server_event_hook(
     word: *mut *mut c_char,
     word_eol: *mut *mut c_char,
     attrs: *mut c::hexchat_event_attrs,
     user_data: *mut c_void,
-) -> c_int
-where
-    T: ServerEvent,
-{
+) -> c_int {
     let user_data = user_data as *mut TypedServerHookRef;
     let context = Context {
         handle: (*user_data).ph,
