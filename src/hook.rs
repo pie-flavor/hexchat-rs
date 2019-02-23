@@ -300,7 +300,10 @@ impl Context {
         T: ServerEvent,
     {
         let server_ref = TypedServerHookRef {
-            function: Box::new(function),
+            function: Box::new(move |c, w, l, d| unsafe {
+                let t = T::create(c, w, l);
+                function(c, t, d)
+            }),
             ph: self.handle,
         };
         let boxed = Box::new(server_ref);
@@ -332,7 +335,7 @@ impl Context {
     pub(crate) fn dealloc_server_event_listener(&self, listener: *mut c::hexchat_hook) {
         unsafe {
             let ptr = c!(hexchat_unhook, self.handle, listener);
-            let ptr = ptr as *mut TypedServerHookRef<crate::server_event::PRIVMSG>; //todo find out if this wakes the dragon
+            let ptr = ptr as *mut TypedServerHookRef;
             Box::from_raw(ptr);
         }
     }
@@ -363,11 +366,8 @@ struct TimerHookRef {
     ph: *mut c::hexchat_plugin,
 }
 
-struct TypedServerHookRef<T>
-where
-    T: ServerEvent,
-{
-    function: Box<dyn Fn(&Context, T, DateTime<Utc>) -> EatMode>,
+struct TypedServerHookRef {
+    function: Box<dyn Fn(&Context, *mut *mut c_char, *mut *mut c_char, DateTime<Utc>) -> EatMode>,
     ph: *mut c::hexchat_plugin,
 }
 
@@ -497,15 +497,14 @@ unsafe extern "C" fn server_event_hook<T>(
 where
     T: ServerEvent,
 {
-    let user_data = user_data as *mut TypedServerHookRef<T>;
+    let user_data = user_data as *mut TypedServerHookRef;
     let context = Context {
         handle: (*user_data).ph,
     };
     let naive = NaiveDateTime::from_timestamp((*attrs).server_time_utc as _, 0);
     let utc = Utc.from_utc_datetime(&naive);
     panic::catch_unwind(AssertUnwindSafe(|| {
-        let t = T::create(&context, word, word_eol);
-        ((*user_data).function)(&context, t, utc) as c_int
+        ((*user_data).function)(&context, word, word_eol, utc) as c_int
     }))
     .unwrap_or(EatMode::None as c_int)
 }
