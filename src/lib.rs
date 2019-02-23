@@ -29,7 +29,7 @@
     type_alias_enum_variants,
     never_type,
     fnbox,
-    try_from
+    try_from,
 )]
 
 use std::ffi::{CStr, CString};
@@ -62,6 +62,9 @@ pub use crate::safe_static::*;
 
 /// Server events for use with `Context::add_server_event_listener`.
 pub mod server_event;
+
+/// Server responses for use with `Context::add_server_response_listener`.
+pub mod response;
 
 #[macro_use]
 #[doc(hidden)]
