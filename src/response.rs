@@ -1,9 +1,9 @@
 #![allow(non_camel_case_types)]
 
-use crate::{Context, from_cstring, IrcIdent, IrcIdentRef};
+use crate::{from_cstring, Context, IrcIdent, IrcIdentRef, UserMask};
+use chrono::{DateTime, TimeZone, Utc};
 use std::os::raw::c_char;
 use std::time::Duration;
-use chrono::{DateTime, Utc, TimeZone};
 
 /// A type representing a server response. Used with `Context::add_server_response_listener`. It is
 /// not recommended you implement this on your own types.
@@ -11,7 +11,8 @@ pub trait ServerResponse {
     /// The numeric ID of this response.
     const ID: &'static str;
     #[doc(hidden)]
-    unsafe fn create(context: &Context, word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self;
+    unsafe fn create(context: &Context, word: *mut *mut c_char, word_eol: *mut *mut c_char)
+        -> Self;
 }
 
 ///// A `ServerResponse` corresponding to `RPL_WELCOME` (`001`).
@@ -35,12 +36,9 @@ pub trait ServerResponse {
 
 macro_rules! rpl {
     ($t:ident[$e:expr] { global($word:ident $word_eol:ident) { $($s:stmt;)* } ($this:ident) $([$desc:expr] $name:ident : $ftype:ty [$rtype:ty] get $getter:block parse $parser:block)* }) => {
-        doc_workaround!((stringify!($t), stringify!($e)) $t[$e] { global($word $word_eol) { $($s;)* } ($this) $([$desc] $name : $ftype [$rtype] get $getter parse $parser)* });
-    }
-}
-
-macro_rules! doc_workaround {
-    (($te:expr, $ee:expr) $t:ident[$e:expr] { global($word:ident $word_eol:ident) { $($s:stmt;)* } ($this:ident) $([$desc:expr] $name:ident : $ftype:ty [$rtype:ty] get $getter:block parse $parser:block)* }) => {
+        rpl!(@RPL (stringify!($t), stringify!($e)) $t[$e] { global($word $word_eol) { $($s;)* } ($this) $([$desc] $name : $ftype [$rtype] get $getter parse $parser)* });
+    };
+    (@RPL ($te:expr, $ee:expr) $t:ident[$e:expr] { global($word:ident $word_eol:ident) { $($s:stmt;)* } ($this:ident) $([$desc:expr] $name:ident : $ftype:ty [$rtype:ty] get $getter:block parse $parser:block)* }) => {
         #[doc = "A `ServerResponse` corresponding to `"]
         #[doc = $te]
         #[doc = "` (`"]
@@ -418,3 +416,173 @@ rpl!(RPL_ENDOFWHOWAS[369] {
         parse { IrcIdent(from_cstring(*msg)) }
 });
 
+rpl!(RPL_LIST[322] {
+    global(msg eol) {}
+    (this)
+    ["The channel being listed."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The number of users visible."]
+    visible: u32 [u32]
+        get { this.visible }
+        parse { from_cstring(*msg.offset(1)).parse().unwrap() }
+    ["The topic of the channel."]
+    topic: String [&str]
+        get { &this.topic }
+        parse { from_cstring((*eol.offset(2)).offset(1)) }
+});
+
+rpl!(RPL_LISTEND[323] {
+    global(_a _b) {} (_c)
+});
+
+rpl!(RPL_UNIQOPIS[325] {
+    global(msg _a) {}
+    (this)
+    ["The channel being queried."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The nick of the user."]
+    nick: IrcIdent [IrcIdentRef]
+        get { this.nick.as_ref() }
+        parse { IrcIdent(from_cstring(*msg.offset(1))) }
+});
+
+rpl!(RPL_CHANNELMODEIS[324] {
+    global(msg eol) {}
+    (this)
+    ["The channel being queried."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The channel mode string."]
+    mode: String [&str]
+        get { &this.mode }
+        parse { from_cstring(*msg.offset(1)) }
+    ["The channel mode parameters."]
+    params: Vec<String> [&[String]]
+        get { &this.params }
+        parse {
+            let mut vec = Vec::new();
+            let string = from_cstring(*eol.offset(2));
+            for param in string.split(' ') {
+                vec.push(param.to_string());
+            }
+            vec
+        }
+});
+
+rpl!(RPL_NOTOPIC[331] {
+    global(msg _a) {}
+    (this)
+    ["The channel being queried."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+});
+
+rpl!(RPL_TOPIC[332] {
+    global(msg eol) {}
+    (this)
+    ["The channel being queried."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The channel topic."]
+    topic: String [&str]
+        get { &this.topic }
+        parse { from_cstring((*eol.offset(1)).offset(1)) }
+});
+
+rpl!(RPL_INVITING[341] {
+    global(msg _a) {}
+    (this)
+    ["The channel being invited to."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The nick of the user being invited."]
+    nick: IrcIdent [IrcIdentRef]
+        get { this.nick.as_ref() }
+        parse { IrcIdent(from_cstring(*msg.offset(1))) }
+});
+
+rpl!(RPL_SUMMONING[342] {
+    global(msg _a) {}
+    (this)
+    ["The user being summoned."]
+    user: IrcIdent [IrcIdentRef]
+        get { this.user.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+});
+
+rpl!(RPL_INVITELIST[346] {
+    global(msg _a) {}
+    (this)
+    ["The channel being invited to."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The invite mask being invited."]
+    invite_mask: UserMask [&UserMask]
+        get { &this.invite_mask }
+        parse { UserMask::new(from_cstring(*msg.offset(1))).unwrap() }
+});
+
+rpl!(RPL_ENDOFINVITELIST[347] {
+    global(msg _a) {}
+    (this)
+    ["The channel being invited to."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+});
+
+rpl!(RPL_EXCEPTLIST[348] {
+    global(msg _a) {}
+    (this)
+    ["The channel being excepted from."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+    ["The exception mask being excepted."]
+    exception_mask: UserMask [&UserMask]
+        get { &this.exception_mask }
+        parse { UserMask::new(from_cstring(*msg.offset(1))).unwrap() }
+});
+
+rpl!(RPL_ENDOFEXCEPTLIST[349] {
+    global(msg _a) {}
+    (this)
+    ["The channel being excepted from."]
+    channel: IrcIdent [IrcIdentRef]
+        get { this.channel.as_ref() }
+        parse { IrcIdent(from_cstring(*msg)) }
+});
+
+rpl!(RPL_VERSION[351] {
+    global(msg eol) {
+        let version_string = from_cstring(*msg);
+        let debug_offset = version_string.find('.').unwrap();
+    }
+    (this)
+    ["The version of the server."]
+    version: String [&str]
+        get { &this.version }
+        parse { version_string[..debug_offset].to_string() }
+    ["The debug level of the server."]
+    debug_level: String [&str]
+        get { &this.debug_level }
+        parse { version_string[(debug_offset + 1)..].to_string() }
+    ["The server name."]
+    server_name: String [&str]
+        get { &this.server_name }
+        parse { from_cstring(*msg.offset(1)) }
+    ["The server comment."]
+    comment: String [&str]
+        get { &this.comment }
+        parse { from_cstring((*eol.offset(2)).offset(1)) }
+
+});

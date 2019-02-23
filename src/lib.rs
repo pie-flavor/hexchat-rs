@@ -29,7 +29,7 @@
     type_alias_enum_variants,
     never_type,
     fnbox,
-    try_from,
+    try_from
 )]
 
 use std::ffi::{CStr, CString};
