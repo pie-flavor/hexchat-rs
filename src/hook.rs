@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)] // todo fix when intellij-rust supports trait typedefs
 
 use crate::call;
+use crate::server_event::ServerEvent;
 use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, WindowEvent};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
@@ -23,6 +24,9 @@ pub struct RawServerEventListener(pub(crate) *mut c::hexchat_hook);
 /// A handle to a registered timer task.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct TimerTask(pub(crate) *mut c::hexchat_hook);
+/// A handle to a registered server event listener.
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct ServerEventListener(pub(crate) *mut c::hexchat_hook);
 
 impl Context {
     /// Registers a new command accessible to the user via `/<COMMAND> [args]`. Returns a
@@ -193,8 +197,8 @@ impl Context {
     ///
     /// The callback's signature is this context, followed by a slice of all the event's arguments,
     /// followed by the time this event was sent. If you intend to get event arguments, you probably
-    /// should start at 1, since argument 0 is the event name. The callback should return who the
-    /// event should be hidden from.
+    /// should start at 2, since argument 0 is the sender and argument 1 is the event name. The
+    /// callback should return who the event should be hidden from.
     pub fn add_raw_server_event_listener(
         &self,
         event: &str,
@@ -279,6 +283,59 @@ impl Context {
             Box::from_raw(ptr);
         }
     }
+
+    /// Adds a listener for server events, i.e. commands coming from the server. Returns a
+    /// corresponding object suitable for passing to `remove_server_event_listener`.
+    ///
+    /// # Callback
+    ///
+    /// The callback's signature is this context, followed by the event itself, followed by the
+    /// time this event was sent. The callback should return who the event should be hidden from.
+    pub fn add_server_event_listener<T>(
+        &self,
+        priority: Priority,
+        function: impl Fn(&Self, T, DateTime<Utc>) -> EatMode + 'static,
+    ) -> ServerEventListener
+    where
+        T: ServerEvent,
+    {
+        let server_ref = TypedServerHookRef {
+            function: Box::new(function),
+            ph: self.handle,
+        };
+        let boxed = Box::new(server_ref);
+        let ptr = Box::into_raw(boxed);
+        let event = to_cstring(T::NAME);
+        let hook_ptr = unsafe {
+            c!(
+                hexchat_hook_server_attrs,
+                self.handle,
+                event.as_ptr(),
+                c_int::from(priority.0),
+                server_event_hook::<T>,
+                ptr as _,
+            )
+        };
+        call::get_plugin()
+            .typed_server_events
+            .insert(ServerEventListener(hook_ptr));
+        ServerEventListener(hook_ptr)
+    }
+
+    /// Removes a server event listener added by `add_server_event_listener`.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn remove_server_event_listener(&self, listener: ServerEventListener) {
+        self.dealloc_server_event_listener(listener.0);
+        call::get_plugin().typed_server_events.remove(&listener);
+    }
+
+    pub(crate) fn dealloc_server_event_listener(&self, listener: *mut c::hexchat_hook) {
+        unsafe {
+            let ptr = c!(hexchat_unhook, self.handle, listener);
+            let ptr = ptr as *mut TypedServerHookRef<crate::server_event::PRIVMSG>; //todo find out if this wakes the dragon
+            Box::from_raw(ptr);
+        }
+    }
 }
 
 struct CommandHookRef {
@@ -303,6 +360,14 @@ struct ServerHookRef {
 
 struct TimerHookRef {
     function: Box<dyn Fn(&Context)>,
+    ph: *mut c::hexchat_plugin,
+}
+
+struct TypedServerHookRef<T>
+where
+    T: ServerEvent,
+{
+    function: Box<dyn Fn(&Context, T, DateTime<Utc>) -> EatMode>,
     ph: *mut c::hexchat_plugin,
 }
 
@@ -421,6 +486,28 @@ unsafe extern "C" fn timer_hook(user_data: *mut c_void) -> c_int {
     }))
     .ok();
     EatMode::All as _
+}
+
+unsafe extern "C" fn server_event_hook<T>(
+    word: *mut *mut c_char,
+    word_eol: *mut *mut c_char,
+    attrs: *mut c::hexchat_event_attrs,
+    user_data: *mut c_void,
+) -> c_int
+where
+    T: ServerEvent,
+{
+    let user_data = user_data as *mut TypedServerHookRef<T>;
+    let context = Context {
+        handle: (*user_data).ph,
+    };
+    let naive = NaiveDateTime::from_timestamp((*attrs).server_time_utc as _, 0);
+    let utc = Utc.from_utc_datetime(&naive);
+    panic::catch_unwind(AssertUnwindSafe(|| {
+        let t = T::create(&context, word, word_eol);
+        ((*user_data).function)(&context, t, utc) as c_int
+    }))
+    .unwrap_or(EatMode::None as c_int)
 }
 
 /// The priority of an event listener or command.

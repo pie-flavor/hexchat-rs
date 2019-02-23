@@ -79,7 +79,7 @@ impl ServerEvent for PRIVMSG {
                         channel_name: target_string,
                     }
                 }
-            },
+            }
             b'$' => PrivmsgTarget::ServerMask(IrcIdent(from_cstring(arg3.offset(1)))),
             _ => PrivmsgTarget::User(IrcIdent(from_cstring(arg3))),
         };
@@ -228,9 +228,12 @@ impl ServerEvent for PART {
         let server = context.get_server_name();
         let channels = channel_names
             .iter()
-            .map(|c| server.as_ref()
-                .and_then(|s| context.get_channel(s, c))
-                .unwrap_or_else(|| context.get_first_channel(c).unwrap()))
+            .map(|c| {
+                server
+                    .as_ref()
+                    .and_then(|s| context.get_channel(s, c))
+                    .unwrap_or_else(|| context.get_first_channel(c).unwrap())
+            })
             .collect();
         let arg4_eol_ptr = word.offset(4);
         let message = if arg4_eol_ptr.is_null() {
@@ -468,7 +471,7 @@ impl ServerEvent for NOTICE {
         word_eol: *mut *mut c_char,
     ) -> Self {
         Self {
-            privmsg: PRIVMSG::create(context, word, word_eol)
+            privmsg: PRIVMSG::create(context, word, word_eol),
         }
     }
 }

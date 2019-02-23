@@ -21,7 +21,7 @@
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
-    clippy::module_name_repetitions,
+    clippy::module_name_repetitions
 )]
 #![feature(
     slice_patterns,

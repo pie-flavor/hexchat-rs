@@ -52,8 +52,8 @@ use std::os::raw::{c_char, c_int};
 use std::panic;
 
 use crate::{
-    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener, TimerTask,
-    WindowEventListener, ALLOCATED,
+    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener,
+    ServerEventListener, TimerTask, WindowEventListener, ALLOCATED,
 };
 
 static PLUGIN: RwLock<Option<PluginDef>> = RwLock::new(None);
@@ -81,6 +81,7 @@ pub(crate) struct PluginDef {
     pub(crate) window_events: HashSet<WindowEventListener>,
     pub(crate) server_events: HashSet<RawServerEventListener>,
     pub(crate) timer_tasks: HashSet<TimerTask>,
+    pub(crate) typed_server_events: HashSet<ServerEventListener>,
 }
 
 pub unsafe fn hexchat_plugin_init<T>(
@@ -101,6 +102,7 @@ where
             window_events: HashSet::new(),
             server_events: HashSet::new(),
             timer_tasks: HashSet::new(),
+            typed_server_events: HashSet::new(),
             ph: plugin_handle,
         };
         *PLUGIN.write() = Some(plugin_def);
@@ -173,6 +175,7 @@ where
         print_events,
         commands,
         timer_tasks,
+        typed_server_events,
         ..
     } = plugin;
     let instance = match instance {
@@ -194,6 +197,9 @@ where
     }
     for timer_task in timer_tasks {
         context.dealloc_timer_task(timer_task.0);
+    }
+    for event in typed_server_events {
+        context.dealloc_server_event_listener(event.0);
     }
     let mut vec = None;
     let mut lock = ALLOCATED.write();
