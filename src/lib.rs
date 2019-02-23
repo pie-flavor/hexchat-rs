@@ -11,10 +11,10 @@
 //! If window manipulation is desired, the `window` feature should be enabled.
 //!
 //! Static variables holding heap resources are discouraged and will cause memory leaks. This crate
-//! provides a `safe_static!` macro for this purpose. Please note that any thread that accesses a
-//! safe static must be killed in your plugin's `Drop` implementation, and it's undefined not to.
-//! You should kill them anyway even if you don't use this, because they'll be a memory leak too
-//! otherwise.
+//! provides a `safe_static!` macro for this purpose. Please note that any thread that you create
+//! that accesses a safe static must be killed in your plugin's `Drop` implementation, and it's
+//! undefined not to. You should kill them anyway even if you don't use this, because they'll be a
+//! memory leak too otherwise.
 
 #![deny(missing_docs, clippy::pedantic)]
 #![allow(
