@@ -20,14 +20,16 @@
 #![allow(
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap
+    clippy::cast_possible_wrap,
+    clippy::module_name_repetitions,
 )]
 #![feature(
     slice_patterns,
     trait_alias,
     type_alias_enum_variants,
     never_type,
-    fnbox
+    fnbox,
+    try_from
 )]
 
 use std::ffi::{CStr, CString};
@@ -52,9 +54,14 @@ mod chan;
 pub use crate::chan::*;
 mod subplugin;
 pub use crate::subplugin::*;
+mod mask;
+pub use crate::mask::*;
 #[macro_use]
 mod safe_static;
 pub use crate::safe_static::*;
+
+/// Server events for use with `Context::add_server_event_listener`.
+pub mod server_event;
 
 #[macro_use]
 #[doc(hidden)]

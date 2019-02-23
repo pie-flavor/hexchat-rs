@@ -75,7 +75,7 @@ pub(crate) fn is_loaded() -> bool {
 }
 
 pub(crate) struct PluginDef {
-    pub(crate) _ph: *mut c::hexchat_plugin,
+    pub(crate) ph: *mut c::hexchat_plugin,
     pub(crate) commands: HashSet<Command>,
     pub(crate) print_events: HashSet<PrintEventListener>,
     pub(crate) window_events: HashSet<WindowEventListener>,
@@ -101,7 +101,7 @@ where
             window_events: HashSet::new(),
             server_events: HashSet::new(),
             timer_tasks: HashSet::new(),
-            _ph: plugin_handle,
+            ph: plugin_handle,
         };
         *PLUGIN.write() = Some(plugin_def);
     }
@@ -163,7 +163,10 @@ where
     let mut plugin_write = PLUGIN_INSTANCE.write();
     mem::swap(&mut plugin, &mut *write);
     mem::swap(&mut instance, &mut *plugin_write);
-    let plugin = match plugin { Some(p) => p, None => return 1 };
+    let plugin = match plugin {
+        Some(p) => p,
+        None => return 1,
+    };
     let PluginDef {
         server_events,
         window_events,
@@ -172,7 +175,10 @@ where
         timer_tasks,
         ..
     } = plugin;
-    let instance = match instance { Some(i) => i, None => return -2 };
+    let instance = match instance {
+        Some(i) => i,
+        None => return -2,
+    };
     mem::drop(instance);
     for event in server_events {
         context.dealloc_raw_server_event_listener(event.0);

@@ -113,6 +113,7 @@ where
 }
 
 /// A full set of information about an IRC channel.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ChannelInfo {
     channel_name: String,
     channel_key: Option<String>,
@@ -289,6 +290,7 @@ impl ChannelType {
 }
 
 /// A full set of information about a DCC transfer.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct DccTransferInfo {
     address: Ipv4Addr,
     bytes_per_second: u32,
@@ -434,6 +436,7 @@ impl DccTransferType {
 }
 
 /// An entry in HexChat's ignore list.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct IgnoreEntry {
     mask: String,
     ignore_type: IgnoreType,
@@ -483,6 +486,7 @@ bitflags! {
 }
 
 /// An entry in HexChat's notify list.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct NotifyEntry {
     networks: Vec<String>,
     nick: String,
@@ -537,6 +541,7 @@ impl FromXList for NotifyEntry {
 }
 
 /// Information about another user.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct UserInfo {
     account_name: Option<String>,
     away: bool,
@@ -654,6 +659,7 @@ fn merge_unsigned(low: i32, high: i32) -> u64 {
 
 /// A channel reference, for identification purposes only. Use `into_info` to request channel
 /// information.
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct ChannelRef {
     pub(crate) ph: *mut c::hexchat_plugin,
     pub(crate) handle: *mut c::hexchat_context,
