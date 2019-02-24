@@ -64,7 +64,7 @@ pub use crate::safe_static::*;
 pub mod server_event;
 
 /// Server responses for use with `Context::add_server_response_listener`.
-pub mod response;
+pub mod reply;
 
 #[macro_use]
 #[doc(hidden)]

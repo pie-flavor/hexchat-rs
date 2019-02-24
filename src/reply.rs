@@ -1,17 +1,23 @@
 #![allow(non_camel_case_types)]
 
 use crate::{from_cstring, Context, IrcIdent, IrcIdentRef, UserMask, UserString};
-use chrono::{DateTime, TimeZone, Utc, NaiveDateTime, Duration};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use std::os::raw::c_char;
 
 /// A type representing a server response. Used with `Context::add_server_response_listener`. It is
 /// not recommended you implement this on your own types.
-pub trait ServerResponse where Self: Sized {
+pub trait ServerReply
+where
+    Self: Sized,
+{
     /// The numeric ID of this response.
     const ID: &'static str;
     #[doc(hidden)]
-    unsafe fn create(context: &Context, word: *mut *mut c_char, word_eol: *mut *mut c_char)
-        -> Option<Self>;
+    unsafe fn create(
+        context: &Context,
+        word: *mut *mut c_char,
+        word_eol: *mut *mut c_char,
+    ) -> Option<Self>;
 }
 
 ///// A `ServerResponse` corresponding to `RPL_WELCOME` (`001`).
@@ -72,7 +78,7 @@ macro_rules! rpl {
             )*
         }
 
-        impl ServerResponse for $t {
+        impl ServerReply for $t {
             const ID: &'static str = stringify!($e);
             unsafe fn create(
                 _context: &Context,
@@ -103,12 +109,24 @@ macro_rules! rpl {
 
 fn parse_datetime(string: impl Into<String>) -> Result<DateTime<Utc>, String> {
     let string = string.into();
-    NaiveDateTime::parse_from_str(&string, "%T %b %e %Y").ok()
+    NaiveDateTime::parse_from_str(&string, "%T %b %e %Y")
+        .ok()
         .map(|n| Utc.from_utc_datetime(&n))
-        .or_else(|| NaiveDateTime::parse_from_str(&string, "%c").ok()
-            .map(|n| Utc.from_utc_datetime(&n)))
-        .or_else(|| DateTime::parse_from_rfc2822(&string).ok().map(|d| d.with_timezone(&Utc)))
-        .or_else(|| DateTime::parse_from_rfc3339(&string).ok().map(|d| d.with_timezone(&Utc)))
+        .or_else(|| {
+            NaiveDateTime::parse_from_str(&string, "%c")
+                .ok()
+                .map(|n| Utc.from_utc_datetime(&n))
+        })
+        .or_else(|| {
+            DateTime::parse_from_rfc2822(&string)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
+        .or_else(|| {
+            DateTime::parse_from_rfc3339(&string)
+                .ok()
+                .map(|d| d.with_timezone(&Utc))
+        })
         .ok_or(string)
 }
 

@@ -1,32 +1,51 @@
 #![allow(clippy::type_complexity)] // todo fix when intellij-rust supports trait typedefs
 
 use crate::call;
+use crate::reply::ServerReply;
 use crate::server_event::ServerEvent;
 use crate::{c, from_cstring, to_cstring, ChannelRef, Context, PrintEvent, WindowEvent};
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int};
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::mpsc;
 use std::time::Duration;
 
 /// A handle to a registered command.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Command(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for Command {}
+unsafe impl Sync for Command {}
 /// A handle to a registered print event listener.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct PrintEventListener(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for PrintEventListener {}
+unsafe impl Sync for PrintEventListener {}
 /// A handle to a registered window event listener.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct WindowEventListener(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for WindowEventListener {}
+unsafe impl Sync for WindowEventListener {}
 /// A handle to a registered raw server event listener.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct RawServerEventListener(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for RawServerEventListener {}
+unsafe impl Sync for RawServerEventListener {}
 /// A handle to a registered timer task.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct TimerTask(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for TimerTask {}
+unsafe impl Sync for TimerTask {}
 /// A handle to a registered server event listener.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct ServerEventListener(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for ServerEventListener {}
+unsafe impl Sync for ServerEventListener {}
+/// A handle to a registered reply listener.
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct ReplyListener(pub(crate) *mut c::hexchat_hook);
+unsafe impl Send for ReplyListener {}
+unsafe impl Sync for ReplyListener {}
 
 impl Context {
     /// Registers a new command accessible to the user via `/<COMMAND> [args]`. Returns a
@@ -338,6 +357,77 @@ impl Context {
             let ptr = ptr as *mut TypedServerHookRef;
             Box::from_raw(ptr);
         }
+    }
+
+    /// Adds a listener for server replies, i.e. the numeric `RPL_*` messages. Returns a
+    /// corresponding object suitable for passing to `remove_reply_listener`.
+    ///
+    /// # Callback
+    ///
+    /// The callback's signature is this context, followed by the reply itself, followed by the time
+    /// this reply was sent. The callback should return who the reply should be hidden from.
+    pub fn add_reply_listener<T>(
+        &self,
+        priority: Priority,
+        function: impl Fn(&Self, T, DateTime<Utc>) -> EatMode + 'static,
+    ) -> ReplyListener
+    where
+        T: ServerReply,
+    {
+        let server_ref = TypedServerHookRef {
+            function: Box::new(move |c, w, l, d| unsafe {
+                let t = T::create(c, w, l);
+                if let Some(t) = t {
+                    function(c, t, d)
+                } else {
+                    eprintln!("Invalid response '{}'", from_cstring(*l));
+                    EatMode::None
+                }
+            }),
+            ph: self.handle,
+        };
+        let boxed = Box::new(server_ref);
+        let ptr = Box::into_raw(boxed);
+        let event = to_cstring(T::ID);
+        let hook_ptr = unsafe {
+            c!(
+                hexchat_hook_server_attrs,
+                self.handle,
+                event.as_ptr(),
+                c_int::from(priority.0),
+                server_event_hook,
+                ptr as _
+            )
+        };
+        call::get_plugin()
+            .typed_server_events
+            .insert(ServerEventListener(hook_ptr));
+        ReplyListener(hook_ptr)
+    }
+
+    /// Removes a reply listener added by `add_reply_listener`.
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn remove_reply_listener(&self, listener: ReplyListener) {
+        self.remove_server_event_listener(ServerEventListener(listener.0));
+    }
+
+    /// Adds a reply listener as defined in `add_reply_listener`, and removes it after receiving a
+    /// single reply.
+    pub fn add_reply_listener_once<T>(
+        &self,
+        priority: Priority,
+        function: impl Fn(&Self, T, DateTime<Utc>) -> EatMode + 'static,
+    ) where
+        T: ServerReply,
+    {
+        let (tx, rx) = mpsc::channel();
+        let listener = self.add_reply_listener(priority, move |c, t, d| {
+            let listener = rx.recv().unwrap();
+            let res = function(c, t, d);
+            c.remove_reply_listener(listener);
+            res
+        });
+        tx.send(listener).ok();
     }
 }
 
