@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, Range};
 
 /// Represents a userstring, typically formatted like `nick!user@address`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UserString {
     mask: String,
     nick: Range<usize>,
@@ -63,6 +63,31 @@ impl UserString {
             nick: 0..user_offset,
             username: (user_offset + 1)..ip_offset,
             address: (ip_offset + 1)..len,
+            host,
+            domain,
+        })
+    }
+    /// Creates a `UserString` from the nick, username, and address components. Returns the new
+    /// userstring, or `None` if `address` was incorrectly formatted.
+    pub fn from_parts(nick: &str, username: &str, address: &str) -> Option<Self> {
+        let mask = format!("{}!{}@{}", nick, username, address);
+        let user_offset = nick.len();
+        let addr_offset = username.len() + user_offset + 1;
+        let begin = addr_offset + 1;
+        let len = mask.len();
+        let (host, domain) = if address.chars().all(|c| c.is_ascii_digit()) {
+            let offset = address.rfind('.')?;
+            ((begin + offset + 1)..len, begin..(begin + offset))
+        } else {
+            let first_dot = address.rfind('.')?;
+            let offset = address[..first_dot].rfind('.')?;
+            (begin..(begin + offset), (begin + offset)..len)
+        };
+        Some(Self {
+            mask,
+            nick: 0..user_offset,
+            username: (user_offset + 1)..addr_offset,
+            address: (addr_offset + 1)..len,
             host,
             domain,
         })
@@ -125,7 +150,7 @@ impl Display for UserString {
 
 /// Represents a user mask, typically formatted like `nick!user@address`, where any of the
 /// components can be replaced with a `*`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UserMask {
     mask: String,
     nick: Range<usize>,
