@@ -423,11 +423,26 @@ impl Context {
         let (tx, rx) = mpsc::channel();
         let listener = self.add_reply_listener(priority, move |c, t, d| {
             let listener = rx.recv().unwrap();
-            let res = function(c, t, d);
             c.remove_reply_listener(listener);
-            res
+            function(c, t, d)
         });
         tx.send(listener).ok();
+    }
+
+    /// Adds a reply listener as defined in `add_reply_listener`, and removes it after receiving
+    /// the first `U`. This will not eat the `U` event, and if you wish to listen to it it must be
+    /// listened to separately (likely using `add_reply_listener_once`).
+    pub fn add_reply_listener_until<T, U, F>(&self, priority: Priority, function: F)
+    where
+        T: ServerReply,
+        U: ServerReply,
+        F: Fn(&Self, T, DateTime<Utc>) -> EatMode + 'static,
+    {
+        let listener = self.add_reply_listener(priority, function);
+        self.add_reply_listener_once(priority, move |c, _t: U, _d| {
+            c.remove_reply_listener(ReplyListener(listener.0));
+            EatMode::None
+        });
     }
 }
 
