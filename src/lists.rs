@@ -668,7 +668,7 @@ pub struct ChannelRef {
 impl ChannelRef {
     /// Turns this `ChannelRef` into a `ChannelInfo`, or `None` if the channel represented by this
     /// `ChannelRef` is no longer valid.
-    pub fn into_info(self) -> Option<ChannelInfo> {
+    pub fn get_info(&self) -> Option<ChannelInfo> {
         let mut list = XList::new(self.ph);
         while list.move_next() {
             if list.get_item_context("context") == self.handle {
