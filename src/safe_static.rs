@@ -3,6 +3,7 @@ use std::ops::Deref;
 
 use parking_lot::{Once, OnceState, RwLock};
 use std::cell::UnsafeCell;
+use std::sync::atomic::AtomicBool;
 
 #[macro_export(local_inner_macros)]
 #[doc(hidden)]
@@ -174,6 +175,8 @@ impl<T> Deref for SafeUninit<T> {
         unsafe { (&*self.instance.get()) }.as_ref().unwrap()
     }
 }
+
+pub(crate) static EXITING: AtomicBool = AtomicBool::new(false);
 
 unsafe impl<T> Sync for SafeUninit<T> where T: Send + Sync {}
 

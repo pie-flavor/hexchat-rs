@@ -53,8 +53,9 @@ use std::panic;
 
 use crate::{
     c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener,
-    ServerEventListener, TimerTask, WindowEventListener, ALLOCATED,
+    ServerEventListener, TimerTask, WindowEventListener, ALLOCATED, EXITING,
 };
+use std::sync::atomic::Ordering;
 
 static PLUGIN: RwLock<Option<PluginDef>> = RwLock::new(None);
 static PLUGIN_INSTANCE: RwLock<Option<PluginInstance>> = RwLock::new(None);
@@ -183,6 +184,7 @@ where
         None => return -2,
     };
     mem::drop(instance);
+    EXITING.store(false, Ordering::SeqCst);
     for event in server_events {
         context.dealloc_raw_server_event_listener(event.0);
     }

@@ -1,3 +1,5 @@
+use phf::{phf_set, Set};
+
 /// Represents a 'print event' in HexChat, i.e. an invocation of one of a hundred and fifty
 /// different format strings corresponding to any possible action.
 ///
@@ -164,7 +166,170 @@ impl PrintEvent {
     pub const YOUR_INVITATION: Self = Self("Your Invitation");
     pub const YOUR_MESSAGE: Self = Self("Your Message");
     pub const YOUR_NICK_CHANGING: Self = Self("Your Nick Changing");
+    /// Gets the ID string of an event.
+    pub fn get_id(&self) -> &'static str {
+        self.0
+    }
+    /// Gets an event by its ID. Returns `None` if not found.
+    pub fn get_by_id(id: &str) -> Option<Self> {
+        ALL_EVENTS.get_key(id).map(|x| Self(*x))
+    }
 }
+
+static ALL_EVENTS: Set<&'static str> = phf_set! {
+    "Add Notify",
+    "Ban List",
+    "Banned",
+    "Beep",
+    "Capability Acknowledgement",
+    "Capability Deleted",
+    "Capability List",
+    "Capability Request",
+    "Change Nick",
+    "Channel Action",
+    "Channel Action Hilight",
+    "Channel Ban",
+    "Channel Creation",
+    "Channel DeHalfOp",
+    "Channel DeOp",
+    "Channel DeVoice",
+    "Channel Exempt",
+    "Channel Half-Operator",
+    "Channel INVITE",
+    "Channel List",
+    "Channel Message",
+    "Channel Mode Generic",
+    "Channel Modes",
+    "Channel Msg Hilight",
+    "Channel Notice",
+    "Channel Operator",
+    "Channel Quiet",
+    "Channel Remove Exempt",
+    "Channel Remove Invite",
+    "Channel Remove Keyword",
+    "Channel Remove Limit",
+    "Channel Set Key",
+    "Channel Set Limit",
+    "Channel UnBan",
+    "Channel UnQuiet",
+    "Channel Url",
+    "Channel Voice",
+    "Connected",
+    "Connecting",
+    "Connection Failed",
+    "CTCP Generic",
+    "CTCP Generic to Channel",
+    "CTCP Send",
+    "CTCP Sound",
+    "CTCP Sound to Channel",
+    "DCC CHAT Abort",
+    "DCC CHAT Connect",
+    "DCC CHAT Failed",
+    "DCC CHAT Offer",
+    "DCC CHAT Offering",
+    "DCC CHAT Reoffer",
+    "DCC Conection Failed",
+    "DCC Generic Offer",
+    "DCC Header",
+    "DCC Malformed",
+    "DCC Offer",
+    "DCC Offer Not Valid",
+    "DCC RECV Abort",
+    "DCC RECV Complete",
+    "DCC RECV Connect",
+    "DCC RECV Failed",
+    "DCC RECV File Open Error",
+    "DCC Rename",
+    "DCC RESUME Request",
+    "DCC SEND Abort",
+    "DCC SEND Complete",
+    "DCC SEND Connect",
+    "DCC SEND Failed",
+    "DCC SEND Offer",
+    "DCC Stall",
+    "DCC Timeout",
+    "Delete Notify",
+    "Disconnected",
+    "Found IP",
+    "Generic Message",
+    "Ignore Add",
+    "Ignore Changed",
+    "Ignore Footer",
+    "Ignore Header",
+    "Ignore Remove",
+    "Ignorelist Empty",
+    "Invite",
+    "Invited",
+    "Join",
+    "Keyword",
+    "Kick",
+    "Killed",
+    "Message Send",
+    "Motd",
+    "MOTD Skipped",
+    "Nick Clash",
+    "Nick Erroneous",
+    "Nick Failed",
+    "No DCC",
+    "No Running Process",
+    "Notice",
+    "Notice Send",
+    "Notify Away",
+    "Notify Back",
+    "Notify Empty",
+    "Notify Header",
+    "Notify Number",
+    "Notify Offline",
+    "Notify Online",
+    "Open Dialog",
+    "Part",
+    "Part with Reason",
+    "Ping Reply",
+    "Ping Timeout",
+    "Private Action",
+    "Private Action to Dialog",
+    "Private Message",
+    "Private Message to Dialog",
+    "Process Already Running",
+    "Quit",
+    "Raw Modes",
+    "Receive Wallops",
+    "Resolving User",
+    "SASL Authenticating",
+    "SASL Response",
+    "Server Connected",
+    "Server Error",
+    "Server Lookup",
+    "Server Notice",
+    "Server Text",
+    "SSL Message",
+    "Stop Connection",
+    "Topic",
+    "Topic Change",
+    "Topic Creation",
+    "Unknown Host",
+    "User Limit",
+    "Users On Channel",
+    "WhoIs Authenticated",
+    "WhoIs Away Line",
+    "WhoIs Channel/Oper Line",
+    "WhoIs End",
+    "WhoIs Identified",
+    "WhoIs Idle Line",
+    "WhoIs Idle Line with Signon",
+    "WhoIs Name Line",
+    "WhoIs Real Host",
+    "WhoIs Server Line",
+    "WhoIs Special",
+    "You Join",
+    "You Kicked",
+    "You Part",
+    "You Part with Reason",
+    "Your Action",
+    "Your Invitation",
+    "Your Message",
+    "Your Nick Changing",
+};
 
 /// An event corresponding to a window action.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -179,4 +344,19 @@ impl WindowEvent {
     pub const FOCUS_TAB: Self = Self("Focus Tab");
     /// Fired when the window is focused, having previously been unfocused.
     pub const FOCUS_WINDOW: Self = Self("Focus Window");
+    /// Gets the ID of this event.
+    pub fn get_id(&self) -> &'static str {
+        self.0
+    }
+    /// Gets an event by its ID. Returns `None` if not found.
+    pub fn get_by_id(id: &str) -> Option<Self> {
+        ALL_WINDOW_EVENTS.get_key(id).map(|x| Self(*x))
+    }
 }
+
+static ALL_WINDOW_EVENTS: Set<&'static str> = phf_set! {
+    "Open Context",
+    "Close Context",
+    "Focus Tab",
+    "Focus Window",
+};
