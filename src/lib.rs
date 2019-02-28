@@ -62,10 +62,10 @@ pub use crate::mask::*;
 mod safe_static;
 pub use crate::safe_static::*;
 
-/// Server events for use with `Context::add_server_event_listener`.
+/// Server events for use with `add_server_event_listener`.
 pub mod server_event;
 
-/// Server responses for use with `Context::add_server_response_listener`.
+/// Server responses for use with `add_server_response_listener`.
 pub mod reply;
 
 #[macro_use]

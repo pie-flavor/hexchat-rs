@@ -52,10 +52,9 @@ unsafe impl Sync for ReplyListener {}
 ///
 /// # Callback
 ///
-/// The callback's signature corresponds to this context, followed by a slice of all the command
-/// arguments. If you intend to get command arguments, you should probably start at 1; argument
-/// 0 is the name of the command. The callback should return who the command event should be
-/// hidden from.
+/// The callback's signature is a slice of all the command arguments. If you intend to get command
+/// arguments, you should probably start at 1; argument 0 is the name of the command. The callback
+/// should return who the command event should be hidden from.
 pub fn register_command(
     name: &str,
     help_text: &str,
@@ -99,14 +98,15 @@ pub(crate) fn dealloc_command(command: *mut c::hexchat_hook) {
 }
 
 /// Adds a listener for a particular `PrintEvent`; see `PrintEvent`'s documentation for more
-/// details. Returns a corresponding object that can be passed to `remove_print_event_listener`.
+/// details.
+///
+/// Returns a corresponding object that can be passed to `remove_print_event_listener`.
 ///
 /// # Callback
 ///
-/// The callback's signature is this context, followed by a slice of all the print event's
-/// arguments, followed by the time this message was printed. Note that the argument `$1`
-/// corresponds to `args[0]` and so forth. The callback should return who the event should be
-/// hidden from.
+/// The callback's signature is a slice of all the print event's arguments, followed by the time
+/// this message was printed. Note that the argument `$1` corresponds to `args[0]` and so forth. The
+/// callback should return who the event should be hidden from.
 pub fn add_print_event_listener(
     event: PrintEvent,
     priority: Priority,
@@ -149,13 +149,14 @@ pub(crate) fn dealloc_print_event_listener(listener: *mut c::hexchat_hook) {
 }
 
 /// Adds a listener for a particular `WindowEvent`. See `WindowEvent`'s docs for more details.
+///
 /// Returns a corresponding object that can be passed to `remove_window_event_listener`.
 ///
 /// # Callback
 ///
-/// The callback's signature is this context, followed by a `ChannelRef` corresponding to the
-/// channel this event is regarding or the current channel if none applies. The callback should
-/// return who the event should be hidden from.
+/// The callback's signature is a `ChannelRef` corresponding to the channel this event is regarding
+/// or the current channel if none applies. The callback should return who the event should be
+/// hidden from.
 pub fn add_window_event_listener(
     event: WindowEvent,
     priority: Priority,
@@ -198,16 +199,16 @@ pub(crate) fn dealloc_window_event_listener(listener: *mut c::hexchat_hook) {
 }
 // todo figure out how the hell keypress and dcc chat text events work
 
-/// Adds a listener for raw server events, i.e. commands coming straight from the server. Will
-/// be superseded by a fuller event API soon. Returns a corresponding object suitable for
-/// passing to `remove_raw_server_event_listener`.
+/// Adds a listener for raw server events, i.e. commands coming straight from the server.
+///
+/// Returns a corresponding object suitable for passing to `remove_raw_server_event_listener`.
 ///
 /// # Callback
 ///
-/// The callback's signature is this context, followed by a slice of all the event's arguments,
-/// followed by the time this event was sent. If you intend to get event arguments, you probably
-/// should start at 2, since argument 0 is the sender and argument 1 is the event name. The
-/// callback should return who the event should be hidden from.
+/// The callback's signature is a slice of all the event's arguments, followed by the time this
+/// event was sent. If you intend to get event arguments, you probably should start at 2, since
+/// argument 0 is the sender and argument 1 is the event name. The callback should return who the
+/// event should be hidden from.
 pub fn add_raw_server_event_listener(
     event: &str,
     priority: Priority,
@@ -249,8 +250,9 @@ pub(crate) fn dealloc_raw_server_event_listener(listener: *mut c::hexchat_hook) 
     }
 }
 
-/// Registers a task to be run repeatedly with a specified interval. Returns a corresponding
-/// object suitable for passing to `remove_timer_task`.
+/// Registers a task to be run repeatedly with a specified interval.
+///
+/// Returns a corresponding object suitable for passing to `remove_timer_task`.
 ///
 /// # Note
 ///
@@ -289,13 +291,14 @@ pub(crate) fn dealloc_timer_task(task: *mut c::hexchat_hook) {
     }
 }
 
-/// Adds a listener for server events, i.e. commands coming from the server. Returns a
-/// corresponding object suitable for passing to `remove_server_event_listener`.
+/// Adds a listener for server events, i.e. commands coming from the server.
+///
+/// Returns a corresponding object suitable for passing to `remove_server_event_listener`.
 ///
 /// # Callback
 ///
-/// The callback's signature is this context, followed by the event itself, followed by the
-/// time this event was sent. The callback should return who the event should be hidden from.
+/// The callback's signature is the event itself, followed by the time this event was sent. The
+/// callback should return who the event should be hidden from.
 pub fn add_server_event_listener<T>(
     priority: Priority,
     function: impl Fn(T, DateTime<Utc>) -> EatMode + 'static,
@@ -342,13 +345,14 @@ pub(crate) fn dealloc_server_event_listener(listener: *mut c::hexchat_hook) {
     }
 }
 
-/// Adds a listener for server replies, i.e. the numeric `RPL_*` messages. Returns a
-/// corresponding object suitable for passing to `remove_reply_listener`.
+/// Adds a listener for server replies, i.e. the numeric `RPL_*` messages.
+///
+/// Returns a corresponding object suitable for passing to `remove_reply_listener`.
 ///
 /// # Callback
 ///
-/// The callback's signature is this context, followed by the reply itself, followed by the time
-/// this reply was sent. The callback should return who the reply should be hidden from.
+/// The callback's signature is the reply itself, followed by the time this reply was sent. The
+/// callback should return who the reply should be hidden from.
 pub fn add_reply_listener<T>(
     priority: Priority,
     function: impl Fn(T, DateTime<Utc>) -> EatMode + 'static,
@@ -409,7 +413,9 @@ pub fn add_reply_listener_once<T>(
 }
 
 /// Adds a reply listener as defined in `add_reply_listener`, and removes it after receiving
-/// the first `U`. This will not eat the `U` event, and if you wish to listen to it it must be
+/// the first `U`.
+///
+/// This will not eat the `U` event, and if you wish to listen to it it must be
 /// listened to separately (likely using `add_reply_listener_once`).
 pub fn add_reply_listener_until<T, U, F>(priority: Priority, function: F)
 where
@@ -559,11 +565,10 @@ unsafe extern "C" fn server_event_hook(
 
 /// The priority of an event listener or command.
 ///
-/// This represents what order listeners or command
-/// handlers will be called, and earlier listeners or command handlers can prevent later listeners
-/// or command handlers from seeing the event or command via `EatMode::Plugin` or `EatMode::All`.
-/// `Priority` instances can be constructed from any `i8`, but you are encouraged to use the
-/// built-in constants, and especially `Priority::NORMAL` at that.
+/// This represents what order listeners or commandhandlers will be called, and earlier listeners or
+/// command handlers can prevent later listenersor command handlers from seeing the event or command
+/// via `EatMode::Plugin` or `EatMode::All`.`Priority` instances can be constructed from any `i8`,
+/// but you are encouraged to use thebuilt-in constants, and especially `Priority::NORMAL` at that.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Priority(pub i8);
 

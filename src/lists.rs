@@ -622,7 +622,9 @@ pub fn get_notify_users() -> impl Iterator<Item = NotifyEntry> {
 pub fn get_users_in_current_channel() -> impl Iterator<Item = UserInfo> {
     XList::new()
 }
-/// Gets all the users in a specific channel, or `None` if the channel is invalid.
+/// Gets all the users in a specific channel.
+///
+/// Returns `None` if the channel is invalid.
 pub fn get_users_in_channel(channel: &ChannelRef) -> Option<impl Iterator<Item = UserInfo>> {
     unsafe {
         let ctx = c!(hexchat_get_context);

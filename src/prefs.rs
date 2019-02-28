@@ -3,8 +3,9 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 
-/// Gets a HexChat user preference by name. Returns the preference if found, or `None` if no
-/// preference by that name exists.
+/// Gets a HexChat user preference by name.
+///
+/// Returns the preference if found, or `None` if no preference by that name exists.
 pub fn get_global_pref(name: &str) -> Option<GlobalPreferenceValue> {
     let mut res_str = ptr::null();
     let mut res_int = 0;
@@ -55,8 +56,9 @@ pub fn get_server_id() -> Option<i32> {
         _ => None,
     }
 }
-/// Saves a plugin preference string to file. Returns `Ok` if it succeeded, or `Err` if there
-/// was an IO error.
+/// Saves a plugin preference string to file.
+///
+/// Returns `Ok` if it succeeded, or `Err` if there was an IO error.
 pub fn set_pref_string(name: &str, value: &str) -> Result<(), ()> {
     let name = to_cstring(name);
     let value = to_cstring(value);
@@ -67,8 +69,9 @@ pub fn set_pref_string(name: &str, value: &str) -> Result<(), ()> {
         Ok(())
     }
 }
-/// Saves a plugin preference integer to file. Returns `Ok` if it succeeeded, or `Err` if there
-/// was an IO error.
+/// Saves a plugin preference integer to file.
+///
+/// Returns `Ok` if it succeeeded, or `Err` if there was an IO error.
 pub fn set_pref_int(name: &str, value: u32) -> Result<(), ()> {
     let name = to_cstring(name);
     let res = unsafe { c!(hexchat_pluginpref_set_int, name.as_ptr(), value as _) };
@@ -78,8 +81,9 @@ pub fn set_pref_int(name: &str, value: u32) -> Result<(), ()> {
         Ok(())
     }
 }
-/// Gets a plugin preference string from file. Returns the result, or `None` if no such
-/// preference exists or there was an IO error.
+/// Gets a plugin preference string from file.
+///
+/// Returns the result, or `None` if no such preference exists or there was an IO error.
 pub fn get_pref_string(name: &str) -> Option<String> {
     let name = to_cstring(name);
     let mut string_buf = [0 as c_char; 512];
@@ -96,8 +100,9 @@ pub fn get_pref_string(name: &str) -> Option<String> {
         Some(unsafe { from_cstring(&string_buf as *const [c_char] as _) }.to_string())
     }
 }
-/// Gets a plugin preference integer from file. Returns the result, or `None` if no such
-/// preference exists or there was an IO error.
+/// Gets a plugin preference integer from file.
+///
+/// Returns the result, or `None` if no such preference exists or there was an IO error.
 pub fn get_pref_int(name: &str) -> Option<u32> {
     let name = to_cstring(name);
     let res = unsafe { c!(hexchat_pluginpref_get_int, name.as_ptr()) };
@@ -107,8 +112,9 @@ pub fn get_pref_int(name: &str) -> Option<u32> {
         Some(res as _)
     }
 }
-/// Deletes a plugin preference from the preferences file. Returns `Ok` if it succeeded or `Err`
-/// if no such preference exists or there was an IO error.
+/// Deletes a plugin preference from the preferences file.
+///
+/// Returns `Ok` if it succeeded or `Err` if no such preference exists or there was an IO error.
 pub fn delete_pref(name: &str) -> Result<(), ()> {
     let name = to_cstring(name);
     let res = unsafe { c!(hexchat_pluginpref_delete, name.as_ptr()) };
@@ -131,7 +137,7 @@ pub fn get_prefs() -> Vec<String> {
 const CURSOR_POS: &str = "state_cursor";
 const SERVER_ID: &str = "id";
 
-/// Possible values from `Context::get_global_pref`.
+/// Possible values from `get_global_pref`.
 pub enum GlobalPreferenceValue {
     /// A boolean value.
     Bool(bool),

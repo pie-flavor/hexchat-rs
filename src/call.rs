@@ -8,7 +8,7 @@
 /// impl Plugin for MyPlugin {
 ///     //...
 /// #    const NAME: &'static str = "myplugin";
-/// #    fn new(context: &Context) -> Self {
+/// #    fn new() -> Self {
 /// #        Self
 /// #    }
 /// }

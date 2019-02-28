@@ -14,7 +14,9 @@ pub fn print_plain(text: &str) {
         c!(hexchat_print, text.as_ptr());
     }
 }
-/// Prints a specific print event to the current tab. Returns whether or not it succeeded.
+/// Prints a specific print event to the current tab.
+///
+/// Returns whether or not it succeeded.
 pub fn print_event(event: PrintEvent, arguments: &[impl AsRef<str>]) -> bool {
     let event = to_cstring(event.0);
     let res = unsafe {
@@ -75,8 +77,9 @@ pub fn print_event(event: PrintEvent, arguments: &[impl AsRef<str>]) -> bool {
     };
     res != 0
 }
-/// Prints a specific print event to the current tab with a specified timestamp. Returns whether
-/// or not it succeeded.
+/// Prints a specific print event to the current tab with a specified timestamp.
+///
+/// Returns whether or not it succeeded.
 pub fn print_event_at(
     event: PrintEvent,
     timestamp: &DateTime<impl TimeZone>,
@@ -154,8 +157,9 @@ pub fn print_event_at(
         res != 0
     }
 }
-/// Prints a specific print event to a particular `ChannelRef`. Returns whether or not it
-/// succeeded.
+/// Prints a specific print event to a particular `ChannelRef`.
+///
+/// Returns whether or not it succeeded.
 pub fn print_event_to_channel(
     channel: &ChannelRef,
     event: PrintEvent,
@@ -176,8 +180,9 @@ pub fn print_event_to_channel(
         res
     }
 }
-/// Prints a specific print event to a particular channel with a specified timestamp. Returns
-/// whether or not it succeeded.
+/// Prints a specific print event to a particular channel with a specified timestamp.
+///
+/// Returns whether or not it succeeded.
 pub fn print_event_to_channel_at(
     channel: &ChannelRef,
     event: PrintEvent,
@@ -199,8 +204,9 @@ pub fn print_event_to_channel_at(
         res
     }
 }
-/// Adds a user mode char to one or more users in the current channel. Returns whether or not it
-/// succeeded.
+/// Adds a user mode char to one or more users in the current channel.
+///
+/// Returns whether or not it succeeded.
 pub fn add_modes(targets: &[impl AsRef<str>], mode: char) -> bool {
     if !mode.is_ascii() {
         return false;
@@ -227,8 +233,9 @@ pub fn add_modes(targets: &[impl AsRef<str>], mode: char) -> bool {
     }
     true
 }
-/// Removes a user mode char from one or more users in the current channel. Returns whether or
-/// not it succeeded.
+/// Removes a user mode char from one or more users in the current channel.
+///
+/// Returns whether or not it succeeded.
 pub fn remove_modes(targets: &[impl AsRef<str>], mode: char) -> bool {
     if !mode.is_ascii() {
         return false;
@@ -254,8 +261,9 @@ pub fn remove_modes(targets: &[impl AsRef<str>], mode: char) -> bool {
     }
     true
 }
-/// Adds a user mode char to one or more users in the specified channel. Returns whether or not
-/// it succeeded.
+/// Adds a user mode char to one or more users in the specified channel.
+///
+/// Returns whether or not it succeeded.
 pub fn add_modes_in_channel(targets: &[impl AsRef<str>], mode: char, channel: &ChannelRef) -> bool {
     unsafe {
         let ctx = c!(hexchat_get_context);
@@ -272,8 +280,9 @@ pub fn add_modes_in_channel(targets: &[impl AsRef<str>], mode: char, channel: &C
         res
     }
 }
-/// Removes a user mode char from one or more users in the specified channel. Returns whether or
-/// not it succeeded.
+/// Removes a user mode char from one or more users in the specified channel.
+///
+/// Returns whether or not it succeeded.
 pub fn remove_modes_in_channel(
     targets: &[impl AsRef<str>],
     mode: char,
@@ -301,18 +310,21 @@ pub fn name_cmp(nick1: &str, nick2: &str) -> Ordering {
     let res = unsafe { c!(hexchat_nickcmp, nick1.as_ptr(), nick2.as_ptr()) };
     res.cmp(&0)
 }
-/// Strips color characters from a string. Returns the stripped string, or `Err` if the
-/// color characters are malformed.
+/// Strips color characters from a string.
+///
+/// Returns the stripped string, or `Err` if the color characters are malformed.
 pub fn strip_colors(string: &str) -> Result<String, ()> {
     strip(string, STRIP_COLORS)
 }
-/// Strips non-color formatting characters from a string. Returns the stripped string, or `Err`
-/// if the formatting characters are malformed.
+/// Strips non-color formatting characters from a string.
+///
+/// Returns the stripped string, or `Err` if the formatting characters are malformed.
 pub fn strip_attributes(string: &str) -> Result<String, ()> {
     strip(string, STRIP_ATTRIBUTES)
 }
-/// Strips all formatting characters from a string. Returns the stripped string, or `Err` if the
-/// formatting characters are malformed.
+/// Strips all formatting characters from a string.
+///
+/// Returns the stripped string, or `Err` if the formatting characters are malformed.
 pub fn strip_formatting(string: &str) -> Result<String, ()> {
     strip(string, STRIP_ALL)
 }
@@ -336,17 +348,20 @@ fn strip(string: &str, mode: i32) -> Result<String, ()> {
         Ok(res)
     }
 }
-/// Strips color characters from a string and puts the result back into the string. Returns `Ok`
-/// if it succeeded or `Err` if the color characters are malformed.
+/// Strips color characters from a string and puts the result back into the string.
+/// Returns `Ok` if it succeeded or `Err` if the color characters are malformed.
 pub fn strip_colors_in_place(string: &mut String) -> Result<(), ()> {
     strip_in_place(string, STRIP_COLORS)
 }
 /// Strips non-color formatting characters from a string and puts the result back into the
-/// string. Returns `Ok` if it succeeded or `Err` if the formatting characters are malformed.
+/// string.
+///
+/// Returns `Ok` if it succeeded or `Err` if the formatting characters are malformed.
 pub fn strip_attributes_in_place(string: &mut String) -> Result<(), ()> {
     strip_in_place(string, STRIP_ATTRIBUTES)
 }
 /// Strips all formatting characters from a string and puts the result back into the string.
+///
 /// Returns `Ok` if it succeeded or `Err` if the formatting characters are malformed
 pub fn strip_formatting_in_place(string: &mut String) -> Result<(), ()> {
     strip_in_place(string, STRIP_ALL)

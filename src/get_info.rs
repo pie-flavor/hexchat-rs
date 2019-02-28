@@ -5,7 +5,9 @@ use std::ffi::CStr;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-/// Gets the client's currently set away reason, or `None` if the client is not away.
+/// Gets the client's currently set away reason.
+///
+/// Returns `None` if the client is not away.
 pub fn get_away_reason() -> Option<String> {
     let away = to_cstring(AWAY);
     unsafe { from_cstring_opt(c!(hexchat_get_info, away.as_ptr())) }
@@ -64,12 +66,16 @@ pub fn get_hexchat_library_dir() -> PathBuf {
         PathBuf::from(&*CStr::from_ptr(c!(hexchat_get_info, lib_dir_fs.as_ptr())).to_string_lossy())
     }
 }
-/// Gets the channel mode string for the current channel, or `None` if unknown.
+/// Gets the channel mode string for the current channel.
+///
+/// Returns `None` if unknown or not applicable.
 pub fn get_channel_mode_string() -> Option<String> {
     let modes = to_cstring(MODES);
     unsafe { from_cstring_opt(c!(hexchat_get_info, modes.as_ptr())) }
 }
-/// Gets the name of the current server network, or `None` if unknown.
+/// Gets the name of the current server network.
+///
+/// Returns `None` if unknown or not applicable.
 pub fn get_network_name() -> Option<String> {
     let network = to_cstring(NETWORK);
     unsafe { from_cstring_opt(c!(hexchat_get_info, network.as_ptr())) }
@@ -79,12 +85,16 @@ pub fn get_nickname() -> String {
     let nick = to_cstring(NICK);
     unsafe { from_cstring(c!(hexchat_get_info, nick.as_ptr())) }
 }
-/// Gets the NickServ password for the current server, or `None` if none is set.
+/// Gets the NickServ password for the current server.
+///
+/// Returns `None` if unset or not applicable.
 pub fn get_nickserv_password() -> Option<String> {
     let nickserv = to_cstring(NICKSERV);
     unsafe { from_cstring_opt(c!(hexchat_get_info, nickserv.as_ptr())) }
 }
-/// Gets the name of the current server, or `None` if unknown.
+/// Gets the name of the current server.
+///
+/// Returns `None` if unknown or not applicable.
 pub fn get_server_name() -> Option<String> {
     let server = to_cstring(SERVER);
     unsafe { from_cstring_opt(c!(hexchat_get_info, server.as_ptr())) }

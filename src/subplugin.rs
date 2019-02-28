@@ -3,9 +3,11 @@ use std::ffi::c_void;
 use std::path::Path;
 use std::ptr;
 
-/// Adds a fake plugin to the plugin list. Useful for scripting enablement plugins, like the
-/// Lua plugin. You don't need to use this to add your crate-registered plugin, and please
-/// don't. Returns a corresponding object suitable for passing to `remove_fake_plugin`.
+/// Adds a fake plugin to the plugin list.
+///
+/// Useful for scripting enablement plugins, like the Lua plugin. You don't need to use this to add
+/// your crate-registered plugin, and please don't. Returns a corresponding object suitable for
+/// passing to `remove_fake_plugin`.
 pub fn add_fake_plugin(
     path: impl AsRef<Path>,
     name: &str,
@@ -28,9 +30,10 @@ pub fn add_fake_plugin(
     };
     FakePlugin { handle }
 }
-/// Removes a fake plugin entry from the plugin list added by `add_fake_plugin`. In case you
-/// missed it the first time around, please do not add your crate-registered plugin to this
-/// list.
+/// Removes a fake plugin entry from the plugin list added by `add_fake_plugin`.
+///
+/// In case you missed it the first time around, please do not add your crate-registered plugin to
+/// this list.
 #[allow(clippy::needless_pass_by_value)]
 pub fn remove_fake_plugin(plugin: FakePlugin) {
     unsafe { c!(hexchat_plugingui_remove, plugin.handle) }
@@ -39,7 +42,7 @@ pub fn remove_fake_plugin(plugin: FakePlugin) {
 /// A handle to a fake plugin entry in the plugin list.
 ///
 /// In case you missed it from the
-/// `Context::add_fake_plugin` documentation, please do not add your crate-registered plugin to this
+/// `add_fake_plugin` documentation, please do not add your crate-registered plugin to this
 /// list.
 pub struct FakePlugin {
     handle: *mut c_void,

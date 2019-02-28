@@ -128,7 +128,7 @@ impl<T> Deref for SafeLazy<T> {
 /// Any `SafeUninit`s will be initialized when the `init` function is called, and will be dropped
 /// after your plugin is dropped.
 ///
-/// A `SafeLazy` must always be in a static variable. To do otherwise is undefined.
+/// A `SafeUninit` must always be in a static variable. To do otherwise is undefined.
 ///
 /// # Important
 ///

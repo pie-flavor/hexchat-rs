@@ -1,7 +1,7 @@
 use crate::{from_cstring, ChannelRef, IrcIdent, IrcIdentRef, UserString};
 use std::os::raw::c_char;
 
-/// A type representing a raw server event. Used with `crate:::add_server_event_listener`. It is
+/// A type representing a raw server event. Used with `add_server_event_listener`. It is
 /// not recommended you implement this on your own types.
 pub trait ServerEvent {
     /// The name of the event, e.g. `PRIVMSG`.

@@ -4,7 +4,7 @@ use crate::{from_cstring, IrcIdent, IrcIdentRef, UserMask, UserString};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use std::os::raw::c_char;
 
-/// A type representing a server response. Used with `Context::add_server_response_listener`. It is
+/// A type representing a server response. Used with `add_server_response_listener`. It is
 /// not recommended you implement this on your own types.
 pub trait ServerReply
 where
