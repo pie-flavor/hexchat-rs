@@ -18,6 +18,7 @@
 
 #![deny(missing_docs, clippy::pedantic)]
 #![allow(
+    stable_features,
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
@@ -29,7 +30,8 @@
     type_alias_enum_variants,
     never_type,
     fnbox,
-    proc_macro_hygiene
+    proc_macro_hygiene,
+    try_from
 )]
 
 use std::ffi::{CStr, CString};
