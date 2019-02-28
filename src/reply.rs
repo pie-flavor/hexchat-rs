@@ -1,6 +1,6 @@
 #![allow(non_camel_case_types)]
 
-use crate::{from_cstring, Context, IrcIdent, IrcIdentRef, UserMask, UserString};
+use crate::{from_cstring, IrcIdent, IrcIdentRef, UserMask, UserString};
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use std::os::raw::c_char;
 
@@ -13,11 +13,7 @@ where
     /// The numeric ID of this response.
     const ID: &'static str;
     #[doc(hidden)]
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Option<Self>;
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Option<Self>;
 }
 
 ///// A `ServerResponse` corresponding to `RPL_WELCOME` (`001`).
@@ -81,7 +77,6 @@ macro_rules! rpl {
         impl ServerReply for $t {
             const ID: &'static str = stringify!($e);
             unsafe fn create(
-                _context: &Context,
                 word: *mut *mut c_char,
                 word_eol: *mut *mut c_char,
             ) -> Option<Self> {

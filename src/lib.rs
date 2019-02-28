@@ -86,18 +86,11 @@ unsafe fn from_cstring_opt(ptr: *const c_char) -> Option<String> {
     }
 }
 
-/// The main object for working with HexChat. Passed to you via callbacks.
-pub struct Context {
-    handle: *mut c::hexchat_plugin,
-}
-
-impl Context {
-    /// Executes a command as though it were typed in HexChat's input box.
-    pub fn send_command(&self, command: &str) {
-        let command = to_cstring(command);
-        unsafe {
-            c!(hexchat_command, self.handle, command.as_ptr());
-        }
+/// Executes a command as though it were typed in HexChat's input box.
+pub fn send_command(command: &str) {
+    let command = to_cstring(command);
+    unsafe {
+        c!(hexchat_command, command.as_ptr());
     }
 }
 
@@ -110,5 +103,5 @@ pub trait Plugin {
     /// The version string of your plugin.
     const VERSION: &'static str = "";
     /// Creates a new instance of your plugin. This is your 'entry point'.
-    fn new(context: &Context) -> Self;
+    fn new() -> Self;
 }

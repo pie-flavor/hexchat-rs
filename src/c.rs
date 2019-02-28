@@ -19,15 +19,18 @@ pub struct hexchat_event_attrs {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! c {
-    ($name:ident, $ph:expr, $($arg:expr),+) => {
-        ((*$ph).$name)($ph, $($arg),+)
-    };
-    ($name:ident, $ph:expr, $($arg:expr,)+) => {
-        ((*$ph).$name)($ph, $($arg),+)
-    };
-    ($name:ident, $ph:expr) => {
-        ((*$ph).$name)($ph)
-    };
+    ($name:ident, $($arg:expr),+) => {{
+        let handle = $crate::call::get_handle();
+        ((*handle).$name)(handle, $($arg),+)
+    }};
+    ($name:ident, $($arg:expr,)+) => {{
+        let handle = $crate::call::get_handle();
+        ((*handle).$name)(handle, $($arg),+)
+    }};
+    ($name:ident) => {{
+        let handle = $crate::call::get_handle();
+        ((*handle).$name)(handle)
+    }};
 }
 
 #[repr(C)]

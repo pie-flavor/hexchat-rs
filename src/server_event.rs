@@ -1,14 +1,13 @@
-use crate::{from_cstring, ChannelRef, Context, IrcIdent, IrcIdentRef, UserString};
+use crate::{from_cstring, ChannelRef, IrcIdent, IrcIdentRef, UserString};
 use std::os::raw::c_char;
 
-/// A type representing a raw server event. Used with `Context::add_server_event_listener`. It is
+/// A type representing a raw server event. Used with `crate:::add_server_event_listener`. It is
 /// not recommended you implement this on your own types.
 pub trait ServerEvent {
     /// The name of the event, e.g. `PRIVMSG`.
     const NAME: &'static str;
     #[doc(hidden)]
-    unsafe fn create(context: &Context, word: *mut *mut c_char, word_eol: *mut *mut c_char)
-        -> Self;
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self;
 }
 
 /// A `ServerEvent` corresponding to `PRIVMSG`.
@@ -54,11 +53,7 @@ impl PRIVMSG {
 
 impl ServerEvent for PRIVMSG {
     const NAME: &'static str = "PRIVMSG";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let user_string = from_cstring(arg1.offset(1));
         let user = UserString::new(user_string).unwrap();
@@ -70,10 +65,9 @@ impl ServerEvent for PRIVMSG {
                     target_string.0.remove(1);
                     PrivmsgTarget::HostMask(target_string)
                 } else {
-                    let channel = context
-                        .get_server_name()
-                        .and_then(|s| context.get_channel(&s, &target_string))
-                        .unwrap_or_else(|| context.get_first_channel(&target_string).unwrap());
+                    let channel = crate::get_server_name()
+                        .and_then(|s| crate::get_channel(&s, &target_string))
+                        .unwrap_or_else(|| crate::get_first_channel(&target_string).unwrap());
                     PrivmsgTarget::Channel {
                         channel,
                         channel_name: target_string,
@@ -117,20 +111,15 @@ impl JOIN {
 
 impl ServerEvent for JOIN {
     const NAME: &'static str = "JOIN";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        _word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, _word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let user_string = from_cstring(arg1.offset(1));
         let user = UserString::new(user_string).unwrap();
         let arg3 = *word.offset(3);
         let channel_string = IrcIdent(from_cstring(arg3.offset(1)));
-        let channel = context
-            .get_server_name()
-            .and_then(|s| context.get_channel(&s, &channel_string))
-            .unwrap_or_else(|| context.get_first_channel(&channel_string).unwrap());
+        let channel = crate::get_server_name()
+            .and_then(|s| crate::get_channel(&s, &channel_string))
+            .unwrap_or_else(|| crate::get_first_channel(&channel_string).unwrap());
         Self {
             user,
             channel_string,
@@ -158,11 +147,7 @@ impl QUIT {
 
 impl ServerEvent for QUIT {
     const NAME: &'static str = "QUIT";
-    unsafe fn create(
-        _context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let user_string = from_cstring(arg1.offset(1));
         let user = UserString::new(user_string).unwrap();
@@ -211,11 +196,7 @@ impl PART {
 impl ServerEvent for PART {
     const NAME: &'static str = "PART";
     //noinspection RsTypeCheck
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        _word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, _word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let user_string = from_cstring(arg1.offset(1));
         let user = UserString::new(user_string).unwrap();
@@ -225,14 +206,14 @@ impl ServerEvent for PART {
             .split(',')
             .map(|t| IrcIdent(t.to_string()))
             .collect();
-        let server = context.get_server_name();
+        let server = crate::get_server_name();
         let channels = channel_names
             .iter()
             .map(|c| {
                 server
                     .as_ref()
-                    .and_then(|s| context.get_channel(s, c))
-                    .unwrap_or_else(|| context.get_first_channel(c).unwrap())
+                    .and_then(|s| crate::get_channel(s, c))
+                    .unwrap_or_else(|| crate::get_first_channel(c).unwrap())
             })
             .collect();
         let arg4_eol_ptr = word.offset(4);
@@ -284,20 +265,15 @@ impl TOPIC {
 
 impl ServerEvent for TOPIC {
     const NAME: &'static str = "TOPIC";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let user_string = from_cstring(arg1.offset(1));
         let user = UserString::new(user_string).unwrap();
         let arg3 = *word.offset(3);
         let channel_string = IrcIdent(from_cstring(arg3));
-        let channel = context
-            .get_server_name()
-            .and_then(|s| context.get_channel(&s, &channel_string))
-            .unwrap_or_else(|| context.get_first_channel(&channel_string).unwrap());
+        let channel = crate::get_server_name()
+            .and_then(|s| crate::get_channel(&s, &channel_string))
+            .unwrap_or_else(|| crate::get_first_channel(&channel_string).unwrap());
         let arg4_eol_ptr = word_eol.offset(4);
         let message = if arg4_eol_ptr.is_null() {
             None
@@ -347,11 +323,7 @@ impl INVITE {
 
 impl ServerEvent for INVITE {
     const NAME: &'static str = "INVITE";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        _word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, _word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let sender_string = from_cstring(arg1.offset(1));
         let sender = UserString::new(sender_string).unwrap();
@@ -359,10 +331,9 @@ impl ServerEvent for INVITE {
         let recipient = IrcIdent(from_cstring(arg3));
         let arg4 = *word.offset(4);
         let channel_string = IrcIdent(from_cstring(arg4));
-        let channel = context
-            .get_server_name()
-            .and_then(|s| context.get_channel(&s, &channel_string))
-            .unwrap_or_else(|| context.get_first_channel(&channel_string).unwrap());
+        let channel = crate::get_server_name()
+            .and_then(|s| crate::get_channel(&s, &channel_string))
+            .unwrap_or_else(|| crate::get_first_channel(&channel_string).unwrap());
         Self {
             sender,
             recipient,
@@ -406,20 +377,15 @@ impl KICK {
 
 impl ServerEvent for KICK {
     const NAME: &'static str = "KICK";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let sender_string = from_cstring(arg1.offset(1));
         let sender = UserString::new(sender_string).unwrap();
         let arg3 = *word.offset(3);
         let channel_string = IrcIdent(from_cstring(arg3));
-        let channel = context
-            .get_server_name()
-            .and_then(|s| context.get_channel(&s, &channel_string))
-            .unwrap_or_else(|| context.get_first_channel(&channel_string).unwrap());
+        let channel = crate::get_server_name()
+            .and_then(|s| crate::get_channel(&s, &channel_string))
+            .unwrap_or_else(|| crate::get_first_channel(&channel_string).unwrap());
         let arg4 = *word.offset(4);
         let kicked = IrcIdent(from_cstring(arg4));
         let arg5_eol_ptr = word_eol.offset(5);
@@ -465,13 +431,9 @@ impl NOTICE {
 
 impl ServerEvent for NOTICE {
     const NAME: &'static str = "NOTICE";
-    unsafe fn create(
-        context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         Self {
-            privmsg: PRIVMSG::create(context, word, word_eol),
+            privmsg: PRIVMSG::create(word, word_eol),
         }
     }
 }
@@ -495,11 +457,7 @@ impl WALLOPS {
 
 impl ServerEvent for WALLOPS {
     const NAME: &'static str = "WALLOPS";
-    unsafe fn create(
-        _context: &Context,
-        word: *mut *mut c_char,
-        word_eol: *mut *mut c_char,
-    ) -> Self {
+    unsafe fn create(word: *mut *mut c_char, word_eol: *mut *mut c_char) -> Self {
         let arg1 = *word.offset(1);
         let server_name = IrcIdent(from_cstring(arg1.offset(1)));
         let arg3 = *word_eol.offset(3);

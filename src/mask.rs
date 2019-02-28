@@ -1,5 +1,3 @@
-use crate::call;
-use crate::Context;
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -329,9 +327,7 @@ pub struct IrcIdentRef<'a>(pub &'a str);
 
 impl<'a> Ord for IrcIdentRef<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
-        let guard = call::get_plugin();
-        let context = Context { handle: guard.ph };
-        context.name_cmp(self.0, other.0)
+        crate::name_cmp(self.0, other.0)
     }
 }
 
@@ -379,9 +375,7 @@ impl IrcIdent {
 
 impl Ord for IrcIdent {
     fn cmp(&self, other: &Self) -> Ordering {
-        let guard = call::get_plugin();
-        let context = Context { handle: guard.ph };
-        context.name_cmp(&self.0, &other.0)
+        crate::name_cmp(&self.0, &other.0)
     }
 }
 

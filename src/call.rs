@@ -52,7 +52,7 @@ use std::os::raw::{c_char, c_int};
 use std::panic;
 
 use crate::{
-    c, to_cstring, Command, Context, Plugin, PrintEventListener, RawServerEventListener,
+    c, to_cstring, Command, Plugin, PrintEventListener, RawServerEventListener,
     ServerEventListener, TimerTask, WindowEventListener, ALLOCATED, EXITING,
 };
 use std::sync::atomic::Ordering;
@@ -64,6 +64,10 @@ unsafe impl Send for PluginDef {}
 
 pub(crate) fn get_plugin() -> MappedRwLockWriteGuard<'static, PluginDef> {
     RwLockWriteGuard::map(PLUGIN.write(), |o| o.as_mut().unwrap())
+}
+
+pub(crate) fn get_handle() -> *mut c::hexchat_plugin {
+    get_plugin().ph
 }
 
 struct PluginInstance(Box<dyn Any>);
@@ -114,18 +118,11 @@ where
     *plugin_desc = desc.into_raw();
     let version = to_cstring(T::VERSION);
     *plugin_version = version.into_raw();
-    let t = panic::catch_unwind(|| {
-        T::new(&Context {
-            handle: plugin_handle,
-        })
-    });
+    let t = panic::catch_unwind(T::new);
     let t = match t {
         Ok(t) => t,
         Err(e) => {
-            Context {
-                handle: plugin_handle,
-            }
-            .send_command(&if let Some(string) = (*e).downcast_ref::<&str>() {
+            crate::send_command(&if let Some(string) = (*e).downcast_ref::<&str>() {
                 format!(
                     r#"GUI MSGBOX "Plugin '{} {}' failed to load. Panic message: {}""#,
                     T::NAME,
@@ -153,13 +150,10 @@ where
     1
 }
 
-pub unsafe fn hexchat_plugin_deinit<T>(plugin_handle: *mut c::hexchat_plugin) -> c_int
+pub unsafe fn hexchat_plugin_deinit<T>(_plugin_handle: *mut c::hexchat_plugin) -> c_int
 where
     T: Plugin,
 {
-    let context = Context {
-        handle: plugin_handle,
-    };
     let mut plugin = None;
     let mut instance = None;
     let mut write = PLUGIN.write();
@@ -186,22 +180,22 @@ where
     mem::drop(instance);
     EXITING.store(false, Ordering::SeqCst);
     for event in server_events {
-        context.dealloc_raw_server_event_listener(event.0);
+        crate::dealloc_raw_server_event_listener(event.0);
     }
     for event in window_events {
-        context.dealloc_window_event_listener(event.0);
+        crate::dealloc_window_event_listener(event.0);
     }
     for event in print_events {
-        context.dealloc_print_event_listener(event.0);
+        crate::dealloc_print_event_listener(event.0);
     }
     for command in commands {
-        context.dealloc_command(command.0);
+        crate::dealloc_command(command.0);
     }
     for timer_task in timer_tasks {
-        context.dealloc_timer_task(timer_task.0);
+        crate::dealloc_timer_task(timer_task.0);
     }
     for event in typed_server_events {
-        context.dealloc_server_event_listener(event.0);
+        crate::dealloc_server_event_listener(event.0);
     }
     let mut vec = None;
     let mut lock = ALLOCATED.write();

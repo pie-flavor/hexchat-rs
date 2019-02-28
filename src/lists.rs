@@ -1,4 +1,4 @@
-use crate::{c, from_cstring_opt, to_cstring, Context};
+use crate::{c, from_cstring_opt, to_cstring};
 use bitflags::bitflags;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use std::marker::PhantomData;
@@ -12,7 +12,6 @@ struct XList<T>
 where
     T: FromXList,
 {
-    ph: *mut c::hexchat_plugin,
     handle: *mut c::hexchat_list,
     _ref: PhantomData<c::hexchat_list>,
     _item: PhantomData<T>,
@@ -24,7 +23,7 @@ where
 {
     fn drop(&mut self) {
         unsafe {
-            c!(hexchat_list_free, self.ph, self.handle);
+            c!(hexchat_list_free, self.handle);
         }
     }
 }
@@ -41,35 +40,34 @@ impl<T> XList<T>
 where
     T: FromXList,
 {
-    fn new(ph: *mut c::hexchat_plugin) -> Self {
+    fn new() -> Self {
         let name = to_cstring(T::LIST_NAME);
         Self {
-            ph,
-            handle: unsafe { c!(hexchat_list_get, ph, name.as_ptr()) },
+            handle: unsafe { c!(hexchat_list_get, name.as_ptr()) },
             _ref: PhantomData,
             _item: PhantomData,
         }
     }
     fn move_next(&mut self) -> bool {
-        unsafe { c!(hexchat_list_next, self.ph, self.handle) != 0 }
+        unsafe { c!(hexchat_list_next, self.handle) != 0 }
     }
     fn get_item_string(&self, field: &str) -> Option<String> {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.handle, cstr.as_ptr());
             from_cstring_opt(ptr)
         }
     }
     fn get_item_int(&self, field: &str) -> i32 {
         unsafe {
             let cstr = to_cstring(field);
-            c!(hexchat_list_int, self.ph, self.handle, cstr.as_ptr()) as _
+            c!(hexchat_list_int, self.handle, cstr.as_ptr()) as _
         }
     }
     fn get_item_time(&self, field: &str) -> DateTime<Utc> {
         unsafe {
             let cstr = to_cstring(field);
-            let time = c!(hexchat_list_time, self.ph, self.handle, cstr.as_ptr());
+            let time = c!(hexchat_list_time, self.handle, cstr.as_ptr());
             let naive = NaiveDateTime::from_timestamp(time as _, 0);
             Utc.from_utc_datetime(&naive)
         }
@@ -77,14 +75,14 @@ where
     fn get_item_context(&self, field: &str) -> *mut c::hexchat_context {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.handle, cstr.as_ptr());
             ptr as *mut _
         }
     }
     fn get_item_char(&self, field: &str) -> char {
         unsafe {
             let cstr = to_cstring(field);
-            let ptr = c!(hexchat_list_str, self.ph, self.handle, cstr.as_ptr());
+            let ptr = c!(hexchat_list_str, self.handle, cstr.as_ptr());
             if ptr.is_null() {
                 '\0'
             } else {
@@ -103,7 +101,7 @@ where
 {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        let res = unsafe { c!(hexchat_list_next, self.ph, self.handle) };
+        let res = unsafe { c!(hexchat_list_next, self.handle) };
         if res == 0 {
             Some(self.get_current())
         } else {
@@ -207,7 +205,6 @@ impl FromXList for ChannelInfo {
             channel_types: list.get_item_string("chantypes").unwrap_or_default(),
             cref: ChannelRef {
                 handle: list.get_item_context("context"),
-                ph: list.ph,
             },
             flags: ChannelFlags::from_bits_truncate(list.get_item_int("flags") as _),
             id: list.get_item_int("id"),
@@ -605,48 +602,41 @@ impl FromXList for UserInfo {
     }
 }
 
-impl Context {
-    /// Gets all channels currently open.
-    pub fn get_all_channels(&self) -> impl Iterator<Item = ChannelInfo> {
-        XList::new(self.handle)
-    }
-    /// Gets all DCC transfers currently active.
-    pub fn get_current_dcc_transfers(&self) -> impl Iterator<Item = DccTransferInfo> {
-        XList::new(self.handle)
-    }
-    /// Gets all entries in the ignore list.
-    pub fn get_ignore_entries(&self) -> impl Iterator<Item = IgnoreEntry> {
-        XList::new(self.handle)
-    }
-    /// Gets all entries in the notify list.
-    pub fn get_notify_users(&self) -> impl Iterator<Item = NotifyEntry> {
-        XList::new(self.handle)
-    }
-    /// Gets all the users in the current channel.
-    pub fn get_users_in_current_channel(&self) -> impl Iterator<Item = UserInfo> {
-        XList::new(self.handle)
-    }
-    /// Gets all the users in a specific channel, or `None` if the channel is invalid.
-    pub fn get_users_in_channel(
-        &self,
-        channel: &ChannelRef,
-    ) -> Option<impl Iterator<Item = UserInfo>> {
-        unsafe {
-            let context = Self { handle: channel.ph };
-            let ctx = c!(hexchat_get_context, channel.ph);
-            if c!(hexchat_set_context, channel.ph, channel.handle) == 0 {
-                None
-            } else {
-                let list = context.get_users_in_current_channel();
-                if c!(hexchat_set_context, channel.ph, ctx) == 0 {
-                    c!(
-                        hexchat_set_context,
-                        channel.ph,
-                        c!(hexchat_find_context, channel.ph, ptr::null(), ptr::null()),
-                    );
-                }
-                Some(list)
+/// Gets all channels currently open.
+pub fn get_all_channels() -> impl Iterator<Item = ChannelInfo> {
+    XList::new()
+}
+/// Gets all DCC transfers currently active.
+pub fn get_current_dcc_transfers() -> impl Iterator<Item = DccTransferInfo> {
+    XList::new()
+}
+/// Gets all entries in the ignore list.
+pub fn get_ignore_entries() -> impl Iterator<Item = IgnoreEntry> {
+    XList::new()
+}
+/// Gets all entries in the notify list.
+pub fn get_notify_users() -> impl Iterator<Item = NotifyEntry> {
+    XList::new()
+}
+/// Gets all the users in the current channel.
+pub fn get_users_in_current_channel() -> impl Iterator<Item = UserInfo> {
+    XList::new()
+}
+/// Gets all the users in a specific channel, or `None` if the channel is invalid.
+pub fn get_users_in_channel(channel: &ChannelRef) -> Option<impl Iterator<Item = UserInfo>> {
+    unsafe {
+        let ctx = c!(hexchat_get_context);
+        if c!(hexchat_set_context, channel.handle) == 0 {
+            None
+        } else {
+            let list = get_users_in_current_channel();
+            if c!(hexchat_set_context, ctx) == 0 {
+                c!(
+                    hexchat_set_context,
+                    c!(hexchat_find_context, ptr::null(), ptr::null()),
+                );
             }
+            Some(list)
         }
     }
 }
@@ -661,7 +651,6 @@ fn merge_unsigned(low: i32, high: i32) -> u64 {
 /// information.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct ChannelRef {
-    pub(crate) ph: *mut c::hexchat_plugin,
     pub(crate) handle: *mut c::hexchat_context,
 }
 
@@ -669,7 +658,7 @@ impl ChannelRef {
     /// Turns this `ChannelRef` into a `ChannelInfo`, or `None` if the channel represented by this
     /// `ChannelRef` is no longer valid.
     pub fn get_info(&self) -> Option<ChannelInfo> {
-        let mut list = XList::new(self.ph);
+        let mut list = XList::new();
         while list.move_next() {
             if list.get_item_context("context") == self.handle {
                 return Some(list.get_current());
